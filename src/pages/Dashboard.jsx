@@ -38,9 +38,31 @@ export default function Dashboard() {
         }).catch(err => ({ data: { revenue: 0, expenses: 0 } }))
       ]);
 
-      // 会計帳簿からの正確な収益と支出を使用
-      const monthlyRevenue = profitLoss.data?.revenue || 0;
-      const monthlyExpenses = profitLoss.data?.expenses || 0;
+      // 今月の収益と支出を計算（会計帳簿と書類データの両方から）
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      
+      // 書類データから直接計算（発行済みの請求書のみ）
+      const monthlyDocs = (documents.data || []).filter(doc => 
+        doc.issue_date?.startsWith(currentMonth) && 
+        doc.document_type === 'invoice' &&
+        (doc.status === 'issued' || doc.status === 'paid' || !doc.status)
+      );
+      const docsRevenue = monthlyDocs.reduce((sum, doc) => sum + (doc.total_amount || 0), 0);
+      
+      // 発注データから直接計算（納品済みのみ）
+      const monthlyPOs = (purchaseOrders.data || []).filter(po => 
+        po.order_date?.startsWith(currentMonth) &&
+        (po.status === 'delivered' || po.status === 'received')
+      );
+      const posExpenses = monthlyPOs.reduce((sum, po) => sum + (po.total_amount || 0), 0);
+
+      // 会計帳簿からの数値を取得
+      const accountingRevenue = profitLoss.data?.revenue || 0;
+      const accountingExpenses = profitLoss.data?.expenses || 0;
+
+      // どちらか大きい方を使用（データの整合性を保つ）
+      const monthlyRevenue = Math.max(docsRevenue, accountingRevenue);
+      const monthlyExpenses = Math.max(posExpenses, accountingExpenses);
 
       setStats({
         totalCustomers: (customers.data || []).length,
