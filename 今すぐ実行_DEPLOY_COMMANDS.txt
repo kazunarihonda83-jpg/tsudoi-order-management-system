@@ -1,0 +1,63 @@
+##############################################
+# Vercelデプロイコマンド（コピー&ペースト用）
+##############################################
+
+# ステップ1: プロジェクトディレクトリに移動
+cd /home/user/webapp/order-management-system
+
+# ステップ2: GitHubリモートを追加（あなたのユーザー名に変更）
+git remote add origin https://github.com/あなたのユーザー名/order-management-system.git
+
+# 例:
+git remote add origin https://github.com/kazunarihonda83-jpg/order-management-system.git
+
+# ステップ3: ブランチ名を確認・変更
+git branch -M master
+
+# ステップ4: GitHubにプッシュ
+git push -u origin master
+
+##############################################
+# 認証情報（必要な場合）
+##############################################
+# Username: あなたのGitHubユーザー名
+# Password: Personal Access Token（パスワードではありません）
+#   → https://github.com/settings/tokens で作成
+#   → Scope: repo を選択
+
+##############################################
+# Vercel設定（Webダッシュボードで入力）
+##############################################
+# URL: https://vercel.com/new
+
+# 環境変数:
+# NODE_ENV=production
+# JWT_SECRET=your-strong-secret-key-change-this
+# VERCEL=1
+
+##############################################
+# 完了後のアクセス
+##############################################
+# URL: https://order-management-system-xxxxx.vercel.app
+# ユーザー名: admin
+# パスワード: admin123
+
+##############################################
+# トラブルシューティング
+##############################################
+# リモートが既に存在する場合:
+git remote remove origin
+# その後、再度 git remote add を実行
+
+# プッシュできない場合:
+git pull origin master --allow-unrelated-histories
+git push -u origin master
+
+##############################################
+# 詳細ガイド
+##############################################
+# 日本語完全ガイド:
+cat VERCEL_デプロイ手順_日本語.md
+
+# 英語ガイド:
+cat START_HERE.md

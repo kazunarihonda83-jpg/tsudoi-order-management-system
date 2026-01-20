@@ -1,0 +1,9 @@
+node_modules
+.git
+.env
+*.log
+*.db
+*.db-shm
+*.db-wal
+vite.log
+server.log
