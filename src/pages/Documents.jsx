@@ -11,7 +11,7 @@ export default function Documents() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState('all');
   const [formData, setFormData] = useState({
-    document_type: 'quotation',
+    document_type: 'invoice',
     customer_id: '',
     issue_date: new Date().toISOString().split('T')[0],
     tax_type: 'exclusive',
@@ -119,7 +119,7 @@ export default function Documents() {
   const resetForm = () => {
     setEditingDoc(null);
     setFormData({
-      document_type: 'quotation',
+      document_type: 'invoice',
       customer_id: '',
       issue_date: new Date().toISOString().split('T')[0],
       tax_type: 'exclusive',
