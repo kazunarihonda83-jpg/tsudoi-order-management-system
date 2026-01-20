@@ -19,6 +19,13 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadDashboardData();
+    
+    // 30秒ごとに自動更新
+    const interval = setInterval(() => {
+      loadDashboardData();
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, []);
 
   const loadDashboardData = async () => {
@@ -118,9 +125,33 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '30px' }}>
-        <BarChart3 size={32} /> ダッシュボード
-      </h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
+        <h1 style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
+          <BarChart3 size={32} /> ダッシュボード
+        </h1>
+        <button
+          onClick={loadDashboardData}
+          disabled={loading}
+          style={{
+            padding: '10px 20px',
+            background: loading ? '#cccccc' : '#1976d2',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            fontSize: '14px',
+            fontWeight: '600',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            transition: 'all 0.2s'
+          }}
+          onMouseEnter={(e) => !loading && (e.target.style.background = '#1565c0')}
+          onMouseLeave={(e) => !loading && (e.target.style.background = '#1976d2')}
+        >
+          🔄 {loading ? '更新中...' : 'データ更新'}
+        </button>
+      </div>
 
       {/* 統計カード */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '30px' }}>
