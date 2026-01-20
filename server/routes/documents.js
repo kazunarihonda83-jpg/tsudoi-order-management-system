@@ -86,8 +86,7 @@ router.post('/', (req, res) => {
       );
     });
     
-    // 請求書の場合、デフォルトで発行済みとして自動仕訳を作成
-    const finalStatus = status || (document_type === 'invoice' ? 'issued' : 'draft');
+    // 請求書の場合、自動仕訳を作成
     if (document_type === 'invoice' && finalStatus === 'issued') {
       createJournalFromDocument(result.lastInsertRowid, document_type);
     }
