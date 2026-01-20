@@ -27,6 +27,17 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' })); // 画像データ用にリミットを拡大
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+// キャッシュ無効化ミドルウェア（全APIリクエストに適用）
+app.use('/api', (req, res, next) => {
+  res.set({
+    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    'Surrogate-Control': 'no-store'
+  });
+  next();
+});
+
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/customers', customersRoutes);
