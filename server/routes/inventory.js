@@ -349,12 +349,13 @@ router.delete('/alerts/bulk-delete', (req, res) => {
 // アラート削除
 router.delete('/alerts/:id', (req, res) => {
   try {
-    // 完全削除ではなく、解決済みとしてマークする
+    // ユーザーが手動で削除したことをマーク（二度と復活させない）
     const result = db.prepare(`
       UPDATE stock_alerts SET 
         is_resolved = 1,
         resolved_at = CURRENT_TIMESTAMP,
-        resolved_by = ?
+        resolved_by = ?,
+        manually_dismissed = 1
       WHERE id = ?
     `).run(req.user.id, req.params.id);
     
@@ -421,9 +422,9 @@ function checkStockAlerts(inventoryId) {
     const inventory = db.prepare('SELECT * FROM inventory WHERE id = ?').get(inventoryId);
     if (!inventory) return;
 
-    // 既存のアラート（未解決 + 解決済み）を取得
+    // 既存のアラート（未解決 + 解決済み + 手動削除）を取得
     const existingAlerts = db.prepare(`
-      SELECT alert_type, is_resolved, resolved_at FROM stock_alerts 
+      SELECT alert_type, is_resolved, manually_dismissed, resolved_at FROM stock_alerts 
       WHERE inventory_id = ?
       ORDER BY created_at DESC
     `).all(inventoryId);
@@ -431,23 +432,17 @@ function checkStockAlerts(inventoryId) {
     const hasLowStockAlert = existingAlerts.some(a => a.alert_type === 'low_stock' && a.is_resolved === 0);
     const hasExpiryAlert = existingAlerts.some(a => a.alert_type === 'expiry_warning' && a.is_resolved === 0);
     
-    // 最近（1時間以内）に解決/削除されたアラートは再作成しない
-    const recentlyResolvedLowStock = existingAlerts.some(a => 
-      a.alert_type === 'low_stock' && 
-      a.is_resolved === 1 && 
-      a.resolved_at && 
-      (Date.now() - new Date(a.resolved_at).getTime()) < 3600000 // 1時間 = 3600000ms
+    // ユーザーが手動で削除したアラートは二度と作成しない
+    const wasManuallyDismissedLowStock = existingAlerts.some(a => 
+      a.alert_type === 'low_stock' && a.manually_dismissed === 1
     );
     
-    const recentlyResolvedExpiry = existingAlerts.some(a => 
-      a.alert_type === 'expiry_warning' && 
-      a.is_resolved === 1 && 
-      a.resolved_at && 
-      (Date.now() - new Date(a.resolved_at).getTime()) < 3600000
+    const wasManuallyDismissedExpiry = existingAlerts.some(a => 
+      a.alert_type === 'expiry_warning' && a.manually_dismissed === 1
     );
 
-    // 在庫不足アラート - 最近解決されていない場合のみ作成
-    if (inventory.current_stock <= inventory.reorder_point && !hasLowStockAlert && !recentlyResolvedLowStock) {
+    // 在庫不足アラート - 手動削除されていない場合のみ作成
+    if (inventory.current_stock <= inventory.reorder_point && !hasLowStockAlert && !wasManuallyDismissedLowStock) {
       db.prepare(`
         INSERT INTO stock_alerts (inventory_id, alert_type, alert_level, message)
         VALUES (?, ?, ?, ?)
@@ -458,15 +453,18 @@ function checkStockAlerts(inventoryId) {
         `${inventory.item_name}の在庫が発注点（${inventory.reorder_point}${inventory.unit}）以下です。現在在庫：${inventory.current_stock}${inventory.unit}`
       );
     } else if (inventory.current_stock > inventory.reorder_point && hasLowStockAlert) {
-      // 在庫が回復したら自動解決
+      // 在庫が回復したら自動解決（手動削除フラグはリセット）
       db.prepare(`
-        UPDATE stock_alerts SET is_resolved = 1, resolved_at = CURRENT_TIMESTAMP
+        UPDATE stock_alerts SET 
+          is_resolved = 1, 
+          resolved_at = CURRENT_TIMESTAMP,
+          manually_dismissed = 0
         WHERE inventory_id = ? AND alert_type = 'low_stock' AND is_resolved = 0
       `).run(inventoryId);
     }
 
-    // 賞味期限アラート - 最近解決されていない場合のみ作成
-    if (inventory.expiry_date && !hasExpiryAlert && !recentlyResolvedExpiry) {
+    // 賞味期限アラート - 手動削除されていない場合のみ作成
+    if (inventory.expiry_date && !hasExpiryAlert && !wasManuallyDismissedExpiry) {
       const expiryCheck = db.prepare(`
         SELECT date(?) <= date('now', '+7 days') AND date(?) >= date('now') as is_expiring
       `).get(inventory.expiry_date, inventory.expiry_date);

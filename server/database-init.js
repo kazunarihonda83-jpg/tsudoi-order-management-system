@@ -260,6 +260,7 @@ export function initDatabase() {
       is_resolved INTEGER DEFAULT 0,
       resolved_at DATETIME,
       resolved_by INTEGER,
+      manually_dismissed INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (inventory_id) REFERENCES inventory (id) ON DELETE CASCADE,
       FOREIGN KEY (resolved_by) REFERENCES administrators (id)
