@@ -35,13 +35,13 @@ router.post('/', (req, res) => {
     const today = new Date();
     const docNumber = `${document_type.charAt(0).toUpperCase()}${today.getFullYear().toString().slice(-2)}${(today.getMonth()+1).toString().padStart(2,'0')}${Date.now().toString().slice(-5)}`;
     const result = db.prepare(`INSERT INTO documents (document_number, document_type, customer_id, issue_date, 
-      tax_type, tax_rate, subtotal, tax_amount, total_amount, notes, admin_id) 
+      tax_type, tax_rate, subtotal, tax_amount, total_amount, notes, created_by) 
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(docNumber, document_type, customer_id, issue_date, 
       tax_type || 'exclusive', tax_rate || 10, subtotal, taxAmount, totalAmount, notes, req.user.id);
     items.forEach(item => {
-      db.prepare(`INSERT INTO document_items (document_id, product_name, quantity, unit_price, tax_category, subtotal) 
-        VALUES (?, ?, ?, ?, ?, ?)`).run(result.lastInsertRowid, item.product_name, item.quantity, item.unit_price, 
-        item.tax_category || 'standard', item.unit_price * item.quantity);
+      db.prepare(`INSERT INTO document_items (document_id, item_name, quantity, unit_price, amount) 
+        VALUES (?, ?, ?, ?, ?)`).run(result.lastInsertRowid, item.product_name, item.quantity, item.unit_price, 
+        item.unit_price * item.quantity);
     });
     const document = db.prepare('SELECT * FROM documents WHERE id = ?').get(result.lastInsertRowid);
     res.status(201).json(document);
@@ -64,9 +64,9 @@ router.put('/:id', (req, res) => {
       tax_rate || 10, subtotal, taxAmount, totalAmount, notes, req.params.id);
     db.prepare('DELETE FROM document_items WHERE document_id = ?').run(req.params.id);
     items.forEach(item => {
-      db.prepare(`INSERT INTO document_items (document_id, product_name, quantity, unit_price, tax_category, subtotal) 
-        VALUES (?, ?, ?, ?, ?, ?)`).run(req.params.id, item.product_name, item.quantity, item.unit_price, 
-        item.tax_category || 'standard', item.unit_price * item.quantity);
+      db.prepare(`INSERT INTO document_items (document_id, item_name, quantity, unit_price, amount) 
+        VALUES (?, ?, ?, ?, ?)`).run(req.params.id, item.product_name, item.quantity, item.unit_price, 
+        item.unit_price * item.quantity);
     });
     const document = db.prepare('SELECT * FROM documents WHERE id = ?').get(req.params.id);
     res.json(document);
