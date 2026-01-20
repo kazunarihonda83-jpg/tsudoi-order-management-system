@@ -86,6 +86,8 @@ export function initDatabase() {
       due_date DATE,
       payment_date DATE,
       status TEXT DEFAULT 'draft',
+      tax_type TEXT DEFAULT 'exclusive',
+      tax_rate REAL DEFAULT 10.0,
       subtotal REAL DEFAULT 0,
       tax_amount REAL DEFAULT 0,
       total_amount REAL DEFAULT 0,
