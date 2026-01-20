@@ -33,15 +33,16 @@ router.post('/orders', (req, res) => {
     const taxAmount = Math.floor(subtotal * 10 / 100);
     const totalAmount = subtotal + taxAmount;
     const orderNumber = `PO${new Date().getFullYear().toString().slice(-2)}${Date.now().toString().slice(-6)}`;
-    const result = db.prepare(`INSERT INTO purchase_orders (order_number, supplier_id, order_date, tax_type, tax_rate, 
-      subtotal, tax_amount, total_amount, status, notes, admin_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(orderNumber, supplier_id, order_date, 'exclusive', 10, subtotal, taxAmount, totalAmount, 'draft', notes, req.user.id);
+    const result = db.prepare(`INSERT INTO purchase_orders (order_number, supplier_id, order_date, 
+      subtotal, tax_amount, total_amount, status, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(orderNumber, supplier_id, order_date, subtotal, taxAmount, totalAmount, 'draft', notes, req.user.id);
     items.forEach(item => {
-      db.prepare(`INSERT INTO purchase_order_items (purchase_order_id, product_name, quantity, unit_price, tax_category, subtotal) 
-        VALUES (?, ?, ?, ?, ?, ?)`).run(result.lastInsertRowid, item.product_name, item.quantity, item.unit_price, 'standard', item.unit_price * item.quantity);
+      db.prepare(`INSERT INTO purchase_order_items (purchase_order_id, item_name, quantity, unit_price, amount) 
+        VALUES (?, ?, ?, ?, ?)`).run(result.lastInsertRowid, item.product_name, item.quantity, item.unit_price, item.unit_price * item.quantity);
     });
     res.status(201).json({ id: result.lastInsertRowid, order_number: orderNumber });
   } catch (error) {
+    console.error('Create purchase order error:', error);
     res.status(500).json({ error: 'Failed to create purchase order' });
   }
 });
@@ -58,8 +59,8 @@ router.put('/orders/:id', (req, res) => {
       .run(supplier_id, order_date, subtotal, taxAmount, totalAmount, notes, req.params.id);
     db.prepare('DELETE FROM purchase_order_items WHERE purchase_order_id = ?').run(req.params.id);
     items.forEach(item => {
-      db.prepare(`INSERT INTO purchase_order_items (purchase_order_id, product_name, quantity, unit_price, tax_category, subtotal) 
-        VALUES (?, ?, ?, ?, ?, ?)`).run(req.params.id, item.product_name, item.quantity, item.unit_price, 'standard', item.unit_price * item.quantity);
+      db.prepare(`INSERT INTO purchase_order_items (purchase_order_id, item_name, quantity, unit_price, amount) 
+        VALUES (?, ?, ?, ?, ?)`).run(req.params.id, item.product_name, item.quantity, item.unit_price, item.unit_price * item.quantity);
     });
     const order = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(req.params.id);
     res.json(order);
