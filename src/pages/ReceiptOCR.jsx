@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Camera, Upload, Check, X, Edit, Plus, Trash2 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 import api from '../utils/api';
 
 let Tesseract = null;
@@ -19,6 +20,7 @@ const loadTesseract = async () => {
 };
 
 export default function ReceiptOCR() {
+  const { user } = useAuth();
   const [image, setImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [ocrResult, setOcrResult] = useState(null);
@@ -316,7 +318,8 @@ export default function ReceiptOCR() {
     }
     
     console.log('========== OCR Parse Summary ==========');
-    console.log('Store Name:', storeName);
+    console.log('Store Name (from OCR):', storeName);
+    console.log('Store Name (using login user):', user?.username || '未ログイン');
     console.log('Recipient Name:', recipientName);
     console.log('Date:', date);
     console.log('Total Amount:', totalAmount);
@@ -325,7 +328,7 @@ export default function ReceiptOCR() {
     console.log('=======================================');
 
     setReceiptData({
-      store_name: storeName,
+      store_name: user?.username || '13湯麺集TSUDOI', // ログインユーザー名を使用
       recipient_name: recipientName,
       date: date,
       total_amount: totalAmount,
@@ -426,7 +429,7 @@ export default function ReceiptOCR() {
     setImagePreview(null);
     setOcrResult(null);
     setReceiptData({
-      store_name: '',
+      store_name: user?.username || '13湯麺集TSUDOI', // ログインユーザー名を使用
       recipient_name: '',
       date: '',
       total_amount: '',
@@ -536,16 +539,21 @@ export default function ReceiptOCR() {
               <input 
                 type="text" 
                 value={receiptData.store_name}
-                onChange={(e) => setReceiptData({ ...receiptData, store_name: e.target.value })}
-                placeholder="例: 株式会社スワロー"
+                readOnly
+                placeholder={user?.username || '13湯麺集TSUDOI'}
                 style={{ 
                   width: '100%', 
                   padding: '8px 12px', 
                   border: '1px solid #ddd', 
                   borderRadius: '4px',
-                  fontSize: '14px'
+                  fontSize: '14px',
+                  backgroundColor: '#f5f5f5',
+                  cursor: 'not-allowed'
                 }}
               />
+              <div style={{ fontSize: '11px', color: '#999', marginTop: '4px' }}>
+                ※ ログインユーザー名が自動設定されます
+              </div>
             </div>
             <div>
               <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold', color: '#333' }}>
