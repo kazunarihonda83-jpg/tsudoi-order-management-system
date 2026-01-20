@@ -59,6 +59,9 @@ export default function Documents() {
       setEditingDoc(null);
       resetForm();
       fetchDocuments();
+      
+      // ダッシュボードに通知（カスタムイベント発行）
+      window.dispatchEvent(new CustomEvent('documentUpdated'));
     } catch (error) {
       console.error('Error:', error);
       alert(error.response?.data?.error || (editingDoc ? '更新に失敗しました' : '作成に失敗しました'));
@@ -92,6 +95,9 @@ export default function Documents() {
       await api.delete(`/documents/${id}`);
       alert('書類を削除しました');
       fetchDocuments();
+      
+      // ダッシュボードに通知
+      window.dispatchEvent(new CustomEvent('documentUpdated'));
     } catch (error) {
       console.error('Delete error:', error);
       alert(error.response?.data?.error || '削除に失敗しました');

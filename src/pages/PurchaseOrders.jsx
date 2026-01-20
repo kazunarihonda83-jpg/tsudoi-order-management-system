@@ -39,6 +39,9 @@ export default function PurchaseOrders() {
       setFormData({supplier_id:'',order_date:new Date().toISOString().split('T')[0],
         items:[{product_name:'',quantity:1,unit_price:0}],notes:''});
       fetchOrders();
+      
+      // ダッシュボードに通知
+      window.dispatchEvent(new CustomEvent('purchaseOrderUpdated'));
     } catch (error) {
       alert(error.response?.data?.error || (editingOrder ? '更新に失敗しました' : '作成に失敗しました'));
     }
@@ -65,6 +68,9 @@ export default function PurchaseOrders() {
     await api.delete(`/purchases/orders/${id}`);
     alert('削除しました');
     fetchOrders();
+    
+    // ダッシュボードに通知
+    window.dispatchEvent(new CustomEvent('purchaseOrderUpdated'));
   };
 
   const addItem = () => setFormData({...formData, items:[...formData.items,{product_name:'',quantity:1,unit_price:0}]});
