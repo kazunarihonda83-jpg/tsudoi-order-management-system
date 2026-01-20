@@ -114,6 +114,7 @@ export default function Inventory() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      console.log('送信データ:', formData);
       if (selectedItem) {
         await api.put(`/inventory/${selectedItem.id}`, formData);
       } else {
@@ -129,9 +130,12 @@ export default function Inventory() {
       fetchInventory();
       fetchStats();
       fetchAlerts();
+      alert('在庫を保存しました');
     } catch (error) {
       console.error('Error saving inventory:', error);
-      alert('保存に失敗しました');
+      console.error('送信データ:', formData);
+      console.error('エラー詳細:', error.response?.data || error.message);
+      alert(`保存に失敗しました: ${error.response?.data?.error || error.message}`);
     }
   };
 

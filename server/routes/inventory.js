@@ -88,6 +88,13 @@ router.post('/', (req, res) => {
       storage_location, notes
     } = req.body;
 
+    // バリデーション
+    if (!item_name || !category) {
+      return res.status(400).json({ error: '商品名とカテゴリは必須です' });
+    }
+
+    console.log('在庫登録データ:', { item_name, category, supplier_id, unit, current_stock, reorder_point, optimal_stock, unit_cost });
+
     const result = db.prepare(`
       INSERT INTO inventory (
         item_name, category, supplier_id, unit, current_stock,
@@ -95,7 +102,7 @@ router.post('/', (req, res) => {
         storage_location, notes
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      item_name, category, supplier_id, unit, current_stock || 0,
+      item_name, category, supplier_id || null, unit || '個', current_stock || 0,
       reorder_point || 0, optimal_stock || 0, unit_cost || 0,
       expiry_date || null, storage_location || null, notes || null
     );
@@ -124,7 +131,9 @@ router.post('/', (req, res) => {
     res.status(201).json({ id: result.lastInsertRowid, message: 'Inventory item created successfully' });
   } catch (error) {
     console.error('Error creating inventory item:', error);
-    res.status(500).json({ error: 'Failed to create inventory item' });
+    console.error('Error details:', error.message);
+    console.error('Request body:', req.body);
+    res.status(500).json({ error: `在庫の作成に失敗しました: ${error.message}` });
   }
 });
 
