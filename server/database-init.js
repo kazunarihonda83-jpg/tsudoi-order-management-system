@@ -409,83 +409,54 @@ export function initDatabase() {
     console.log('Creating default purchase orders...');
     
     // Get supplier IDs
-    const fish = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('北海道鮮魚卸');
-    const sake = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('札幌酒類販売');
-    const yasai = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('道産野菜センター');
-    const meat = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('北の食肉センター');
+    const shokuzai = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('千葉食材センター');
+    const seika = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('関東青果市場');
+    const niku = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('東京食肉卸');
+    const chomiryo = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('調味料専門店');
     
     // Get admin user ID
-    const admin = db.prepare('SELECT id FROM administrators WHERE username = ?').get('食彩厨房やくも');
+    const admin = db.prepare('SELECT id FROM administrators WHERE username = ?').get('13湯麺集TSUDOI');
     
-    if (fish && sake && yasai && meat && admin) {
+    if (shokuzai && seika && niku && chomiryo && admin) {
       const defaultOrders = [
         {
-          order_number: 'PO-2025-001',
-          supplier_id: fish.id,
-          order_date: '2025-01-15',
-          expected_delivery_date: '2025-01-16',
+          order_number: 'PO-2026-001',
+          supplier_id: shokuzai.id,
+          order_date: '2026-01-15',
+          expected_delivery_date: '2026-01-16',
           status: 'delivered',
           created_by: admin.id,
           items: [
-            { item_name: '本マグロ（刺身用）', description: '1kg', quantity: 2, unit_price: 8500, tax_rate: 10.0 },
-            { item_name: 'サーモン刺身', description: '500g×4', quantity: 4, unit_price: 2800, tax_rate: 10.0 },
-            { item_name: 'ホタテ貝柱', description: '500g', quantity: 3, unit_price: 3200, tax_rate: 10.0 },
-            { item_name: 'イカ（刺身用）', description: '1kg', quantity: 2, unit_price: 1800, tax_rate: 10.0 }
+            { item_name: '中華麺（細麺）', description: '1kg×20袋', quantity: 20, unit_price: 280, tax_rate: 10.0 },
+            { item_name: '中華麺（太麺）', description: '1kg×10袋', quantity: 10, unit_price: 300, tax_rate: 10.0 },
+            { item_name: 'ワンタンの皮', description: '500g×5', quantity: 5, unit_price: 180, tax_rate: 10.0 }
           ]
         },
         {
-          order_number: 'PO-2025-002',
-          supplier_id: sake.id,
-          order_date: '2025-01-15',
-          expected_delivery_date: '2025-01-17',
+          order_number: 'PO-2026-002',
+          supplier_id: seika.id,
+          order_date: '2026-01-16',
+          expected_delivery_date: '2026-01-17',
           status: 'delivered',
           created_by: admin.id,
           items: [
-            { item_name: '獺祭 純米大吟醸', description: '720ml×6本', quantity: 6, unit_price: 3500, tax_rate: 10.0 },
-            { item_name: '八海山 純米吟醸', description: '1.8L×3本', quantity: 3, unit_price: 4200, tax_rate: 10.0 },
-            { item_name: 'サッポロクラシック', description: '瓶ビール 500ml×24本', quantity: 1, unit_price: 9600, tax_rate: 10.0 },
-            { item_name: '芋焼酎 魔王', description: '1.8L×2本', quantity: 2, unit_price: 5800, tax_rate: 10.0 }
+            { item_name: 'ネギ', description: '1kg×10束', quantity: 10, unit_price: 200, tax_rate: 10.0 },
+            { item_name: 'もやし', description: '1kg×20袋', quantity: 20, unit_price: 50, tax_rate: 10.0 },
+            { item_name: 'キャベツ', description: '1玉×10', quantity: 10, unit_price: 150, tax_rate: 10.0 },
+            { item_name: 'にんにく', description: '500g×3', quantity: 3, unit_price: 400, tax_rate: 10.0 }
           ]
         },
         {
-          order_number: 'PO-2025-003',
-          supplier_id: yasai.id,
-          order_date: '2025-01-16',
-          expected_delivery_date: '2025-01-17',
-          status: 'ordered',
+          order_number: 'PO-2026-003',
+          supplier_id: niku.id,
+          order_date: '2026-01-17',
+          expected_delivery_date: '2026-01-18',
+          status: 'delivered',
           created_by: admin.id,
           items: [
-            { item_name: '北海道産じゃがいも', description: '10kg', quantity: 2, unit_price: 1800, tax_rate: 10.0 },
-            { item_name: '玉ねぎ', description: '10kg', quantity: 2, unit_price: 1200, tax_rate: 10.0 },
-            { item_name: 'アスパラガス', description: '1kg', quantity: 3, unit_price: 2500, tax_rate: 10.0 },
-            { item_name: '大根', description: '1本×10', quantity: 10, unit_price: 180, tax_rate: 10.0 }
-          ]
-        },
-        {
-          order_number: 'PO-2025-004',
-          supplier_id: meat.id,
-          order_date: '2025-01-17',
-          expected_delivery_date: '2025-01-18',
-          status: 'ordered',
-          created_by: admin.id,
-          items: [
-            { item_name: 'ラム肉（ジンギスカン用）', description: '1kg×5', quantity: 5, unit_price: 2800, tax_rate: 10.0 },
-            { item_name: '豚バラ肉', description: '2kg', quantity: 3, unit_price: 1600, tax_rate: 10.0 },
-            { item_name: '鶏もも肉', description: '2kg×2', quantity: 2, unit_price: 1400, tax_rate: 10.0 },
-            { item_name: '牛タン（焼肉用）', description: '500g×2', quantity: 2, unit_price: 4500, tax_rate: 10.0 }
-          ]
-        },
-        {
-          order_number: 'PO-2025-005',
-          supplier_id: fish.id,
-          order_date: '2025-01-18',
-          expected_delivery_date: '2025-01-19',
-          status: 'ordered',
-          created_by: admin.id,
-          items: [
-            { item_name: '活ホッケ', description: '1尾×5', quantity: 5, unit_price: 800, tax_rate: 10.0 },
-            { item_name: 'カニ（ズワイガニ）', description: '500g×3', quantity: 3, unit_price: 4200, tax_rate: 10.0 },
-            { item_name: 'ウニ', description: '100g×5', quantity: 5, unit_price: 2800, tax_rate: 10.0 }
+            { item_name: '豚バラ肉（チャーシュー用）', description: '2kg×5', quantity: 5, unit_price: 1800, tax_rate: 10.0 },
+            { item_name: '鶏ガラ', description: '5kg', quantity: 2, unit_price: 800, tax_rate: 10.0 },
+            { item_name: '豚骨', description: '10kg', quantity: 1, unit_price: 1200, tax_rate: 10.0 }
           ]
         }
       ];
@@ -537,6 +508,31 @@ export function initDatabase() {
             item.tax_rate,
             amount
           );
+        }
+        
+        // 納品完了の発注に対して仕訳を自動作成
+        if (order.status === 'delivered') {
+          const purchaseAccount = db.prepare("SELECT id FROM accounts WHERE account_code = '5000'").get();
+          const payableAccount = db.prepare("SELECT id FROM accounts WHERE account_code = '2000'").get();
+          const supplier = db.prepare('SELECT name FROM suppliers WHERE id = ?').get(order.supplier_id);
+          
+          if (purchaseAccount && payableAccount && supplier) {
+            db.prepare(`
+              INSERT INTO journal_entries (
+                entry_date, description, debit_account_id, credit_account_id, 
+                amount, reference_type, reference_id, admin_id
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(
+              order.order_date,
+              `${supplier.name} 仕入計上 (${order.order_number})`,
+              purchaseAccount.id,
+              payableAccount.id,
+              total_amount,
+              'purchase_order',
+              result.lastInsertRowid,
+              order.created_by
+            );
+          }
         }
       }
       
