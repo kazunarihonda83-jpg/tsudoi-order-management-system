@@ -341,6 +341,8 @@ export function createJournalFromDocument(documentId, documentType) {
 // 発注書から仕訳を自動生成
 export function createJournalFromPurchaseOrder(orderId) {
   try {
+    console.log('[仕訳作成] 発注ID:', orderId);
+    
     const order = db.prepare(`
       SELECT po.*, s.name as supplier_name
       FROM purchase_orders po
@@ -348,7 +350,12 @@ export function createJournalFromPurchaseOrder(orderId) {
       WHERE po.id = ?
     `).get(orderId);
     
-    if (!order) return;
+    if (!order) {
+      console.log('[仕訳作成] 発注が見つかりません');
+      return;
+    }
+    
+    console.log('[仕訳作成] 発注データ:', { order_number: order.order_number, status: order.status, total_amount: order.total_amount });
     
     // 既存の仕訳を削除
     db.prepare(`
@@ -361,15 +368,22 @@ export function createJournalFromPurchaseOrder(orderId) {
       const purchaseAccount = db.prepare("SELECT id FROM accounts WHERE account_code = '5000'").get();
       const payableAccount = db.prepare("SELECT id FROM accounts WHERE account_code = '2000'").get();
       
+      console.log('[仕訳作成] 勘定科目:', { purchase: purchaseAccount?.id, payable: payableAccount?.id });
+      
       if (purchaseAccount && payableAccount) {
+        // 日付は actual_delivery_date > expected_delivery_date > order_date の順で取得
+        const entryDate = order.actual_delivery_date || order.expected_delivery_date || order.order_date;
+        
+        console.log('[仕訳作成] 使用する日付:', entryDate);
+        
         // 借方：仕入高 / 貸方：買掛金
-        db.prepare(`
+        const result = db.prepare(`
           INSERT INTO journal_entries (
             entry_date, description, debit_account_id, credit_account_id, 
             amount, reference_type, reference_id, admin_id
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
-          order.actual_delivery_date || order.expected_delivery_date,
+          entryDate,
           `${order.supplier_name} 仕入計上 (${order.order_number})`,
           purchaseAccount.id,
           payableAccount.id,
@@ -378,10 +392,16 @@ export function createJournalFromPurchaseOrder(orderId) {
           orderId,
           order.created_by || 1
         );
+        
+        console.log('[仕訳作成] 成功 - ID:', result.lastInsertRowid);
+      } else {
+        console.log('[仕訳作成] 勘定科目が見つかりません');
       }
+    } else {
+      console.log('[仕訳作成] ステータスがdeliveredではありません:', order.status);
     }
   } catch (error) {
-    console.error('Error creating journal from purchase order:', error);
+    console.error('[仕訳作成] エラー:', error);
   }
 }
 
