@@ -51,6 +51,50 @@ export default function ReceiptOCR() {
     }
   };
 
+  // 画像の前処理（コントラスト強調、ノイズ除去）
+  const preprocessImage = (imageFile) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 高解像度化
+        canvas.width = img.width * 2;
+        canvas.height = img.height * 2;
+        
+        // 画像を拡大して描画
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        
+        // ピクセルデータを取得
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+        
+        // グレースケール化 + コントラスト強調
+        for (let i = 0; i < data.length; i += 4) {
+          // グレースケール
+          const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+          
+          // コントラスト強調（閾値処理）
+          const threshold = 128;
+          const enhanced = gray > threshold ? 255 : 0;
+          
+          data[i] = enhanced;     // R
+          data[i + 1] = enhanced; // G
+          data[i + 2] = enhanced; // B
+        }
+        
+        ctx.putImageData(imageData, 0, 0);
+        
+        canvas.toBlob((blob) => {
+          resolve(blob);
+        }, 'image/png');
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(imageFile);
+    });
+  };
+
   const handleOCR = async () => {
     if (!image) {
       alert('画像を選択してください');
@@ -61,12 +105,16 @@ export default function ReceiptOCR() {
     setProgress(0);
 
     try {
+      // 画像の前処理
+      console.log('画像を前処理中...');
+      const processedImage = await preprocessImage(image);
+      
       // Lazy load Tesseract
       const TesseractModule = await loadTesseract();
       
-      // 画像の前処理オプション付きでOCR実行（精度向上）
+      // OCR実行（前処理済み画像を使用）
       const result = await TesseractModule.recognize(
-        image,
+        processedImage,
         'jpn+eng',
         {
           logger: (m) => {
@@ -76,7 +124,7 @@ export default function ReceiptOCR() {
           },
           // OCR精度向上のための設定
           tessedit_pageseg_mode: TesseractModule.PSM.AUTO,
-          tessedit_char_whitelist: '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzあいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをんがぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽアイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポ一二三四五六七八九十百千万円年月日時分¥￥,.-/:()（）'
+          // ホワイトリストを削除（制限しすぎると誤認識の原因になる）
         }
       );
 
@@ -218,71 +266,211 @@ export default function ReceiptOCR() {
       console.log('✓ Date detected:', date);
     }
 
-    // 名目/但し書きを探す（「但し」「として」「代として」を含む行）
+    // 名目/但し書きを探す（超強化版）
+    console.log('========== 名目抽出開始 ==========');
     let purpose = '';
-    for (const line of lines) {
-      // より柔軟なパターンマッチング
-      if (line.match(/但し|として|代として|内容|摘要|品目/)) {
-        // 「但し」や「として」の前後の文字列を抽出
-        let extracted = line
+    const purposeCandidates = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // パターン1: 「但し」を含む行
+      if (line.includes('但し')) {
+        const extracted = line
           .replace(/^.*但し[:\s　]*/, '')
-          .replace(/^.*として[:\s　]*/, '')
-          .replace(/^.*内容[:\s　]*/, '')
-          .replace(/^.*摘要[:\s　]*/, '')
-          .replace(/上記.*正に.*/, '')  // 「上記正に受領いたしました」は除外
+          .replace(/上記.*/, '')
+          .replace(/正に.*/, '')
           .replace(/受領.*/, '')
           .replace(/頂.*/, '')
           .trim();
-        
-        // 有効な名目か確認（2文字以上、50文字以内）
         if (extracted.length >= 2 && extracted.length <= 50) {
-          purpose = extracted;
-          break;
+          purposeCandidates.push({
+            text: extracted,
+            line: line,
+            pattern: 'パターン1: 但し'
+          });
+        }
+      }
+      
+      // パターン2: 「として」を含む行
+      if (line.includes('として')) {
+        const extracted = line
+          .replace(/^.*として[:\s　]*/, '')
+          .replace(/上記.*/, '')
+          .replace(/正に.*/, '')
+          .trim();
+        // 「として」の前の部分も候補に
+        const beforeExtracted = line
+          .replace(/として.*/, '')
+          .replace(/^.*但し[:\s　]*/, '')
+          .trim();
+        
+        if (extracted.length >= 2 && extracted.length <= 50) {
+          purposeCandidates.push({
+            text: extracted,
+            line: line,
+            pattern: 'パターン2: として（後）'
+          });
+        }
+        if (beforeExtracted.length >= 2 && beforeExtracted.length <= 50) {
+          purposeCandidates.push({
+            text: beforeExtracted + 'として',
+            line: line,
+            pattern: 'パターン2: として（前）'
+          });
+        }
+      }
+      
+      // パターン3: 「内容」「摘要」「品目」を含む行
+      if (line.match(/内容|摘要|品目/)) {
+        const extracted = line
+          .replace(/^.*内容[:\s　]*/, '')
+          .replace(/^.*摘要[:\s　]*/, '')
+          .replace(/^.*品目[:\s　]*/, '')
+          .trim();
+        if (extracted.length >= 2 && extracted.length <= 50) {
+          purposeCandidates.push({
+            text: extracted,
+            line: line,
+            pattern: 'パターン3: 内容/摘要/品目'
+          });
+        }
+      }
+      
+      // パターン4: 「代」を含む行（「〇〇代として」のような形式）
+      if (line.includes('代') && !line.match(/時代|世代|代表|代理/)) {
+        const extracted = line
+          .replace(/として.*/, '')
+          .replace(/^.*但し[:\s　]*/, '')
+          .trim();
+        if (extracted.length >= 2 && extracted.length <= 50) {
+          purposeCandidates.push({
+            text: extracted,
+            line: line,
+            pattern: 'パターン4: 〇〇代'
+          });
         }
       }
     }
-    console.log('Detected purpose:', purpose);
     
-    // 金額を探す（より精密なパターン - 最も大きい金額を優先）
-    const amountPatterns = [
-      // パターン1: ¥65,800- や ￥65,800ー のような形式（領収書に最も多い）
-      /[¥￥]\s*([\d,]+)\s*[-－ー]/,
-      // パターン2: 合計・税込の後に金額
-      /(?:合計|総額|計|小計|税込金額|税込|ご請求)[:\s　]*[¥￥]?\s*([\d,]+)/i,
-      // パターン3: 金額の後に合計
-      /[¥￥]\s*([\d,]+)\s*(?:円)?\s*(?:合計|総額|計|小計|税込)/i,
-      // パターン4: 上記 ¥65,800- 正に... のような形式
-      /上記\s*[¥￥]?\s*([\d,]+)\s*[-－ー]?\s*(?:円)?\s*(?:正に|なり)/i,
-      // パターン5: 金額のみ（4桁以上、ハイフン付き）
-      /[¥￥]\s*([\d,]{4,})\s*[-－ー]/,
-      // パターン6: 金額のみ（4桁以上）
-      /(?:^|[^0-9])[¥￥]?\s*([\d,]{4,})\s*(?:円|$)/
-    ];
+    console.log('名目候補:', purposeCandidates);
     
+    // 最も適切な候補を選択（長さと内容で判断）
+    if (purposeCandidates.length > 0) {
+      // 「として」で終わる候補を優先
+      const withToshite = purposeCandidates.find(c => c.text.endsWith('として'));
+      if (withToshite) {
+        purpose = withToshite.text;
+        console.log('✓ 選択された名目（として優先）:', purpose);
+      } else {
+        // 最も長い候補を選択
+        purpose = purposeCandidates.sort((a, b) => b.text.length - a.text.length)[0].text;
+        console.log('✓ 選択された名目（長さ優先）:', purpose);
+      }
+    } else {
+      console.log('⚠ 名目が検出できませんでした');
+    }
+    
+    console.log('========== 名目抽出終了 ==========');
+    
+    // 金額を探す（超強化版 - すべての金額候補を収集）
+    console.log('========== 金額抽出開始 ==========');
+    const amountCandidates = [];
+    
+    // 全行をスキャンして、すべての数字パターンを収集
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const prevLine = i > 0 ? lines[i - 1] : '';
+      const nextLine = i < lines.length - 1 ? lines[i + 1] : '';
+      
+      // パターン1: ¥ または ￥ で始まる金額
+      const pattern1 = line.match(/[¥￥]\s*([\d,]+)/g);
+      if (pattern1) {
+        pattern1.forEach(match => {
+          const amount = match.replace(/[^0-9]/g, '');
+          if (amount) {
+            amountCandidates.push({
+              amount: parseInt(amount),
+              line: line,
+              context: `前行: ${prevLine} | 現在: ${line} | 次行: ${nextLine}`,
+              pattern: 'パターン1: ¥記号付き'
+            });
+          }
+        });
+      }
+      
+      // パターン2: 「合計」「税込」などのキーワード付き
+      if (line.match(/合計|総額|税込|ご請求|お支払|金額/i)) {
+        const pattern2 = line.match(/[\d,]+/g);
+        if (pattern2) {
+          pattern2.forEach(match => {
+            const amount = match.replace(/[^0-9]/g, '');
+            if (amount && amount.length >= 3) {
+              amountCandidates.push({
+                amount: parseInt(amount),
+                line: line,
+                context: `前行: ${prevLine} | 現在: ${line} | 次行: ${nextLine}`,
+                pattern: 'パターン2: キーワード付き'
+              });
+            }
+          });
+        }
+      }
+      
+      // パターン3: 大きな数字（4桁以上、カンマ区切り）
+      const pattern3 = line.match(/[\d,]{4,}/g);
+      if (pattern3) {
+        pattern3.forEach(match => {
+          const amount = match.replace(/[^0-9]/g, '');
+          if (amount && amount.length >= 4) {
+            amountCandidates.push({
+              amount: parseInt(amount),
+              line: line,
+              context: `前行: ${prevLine} | 現在: ${line} | 次行: ${nextLine}`,
+              pattern: 'パターン3: 大きな数字'
+            });
+          }
+        });
+      }
+      
+      // パターン4: 「円」の直前の数字
+      const pattern4 = line.match(/([\d,]+)\s*円/g);
+      if (pattern4) {
+        pattern4.forEach(match => {
+          const amount = match.replace(/[^0-9]/g, '');
+          if (amount) {
+            amountCandidates.push({
+              amount: parseInt(amount),
+              line: line,
+              context: `前行: ${prevLine} | 現在: ${line} | 次行: ${nextLine}`,
+              pattern: 'パターン4: 円の直前'
+            });
+          }
+        });
+      }
+    }
+    
+    // 重複を除去し、金額でソート
+    const uniqueAmounts = [...new Set(amountCandidates.map(c => c.amount))]
+      .filter(amount => amount >= 100 && amount <= 100000000)
+      .sort((a, b) => b - a);
+    
+    console.log('全金額候補:', uniqueAmounts);
+    console.log('金額候補の詳細:', amountCandidates.filter(c => c.amount >= 100 && c.amount <= 100000000));
+    
+    // 最大値を採用（領収書の合計金額は通常最大値）
     let totalAmount = '';
     let maxAmount = 0;
     
-    for (const line of lines) {
-      // パターンを優先順位順に試行
-      for (const pattern of amountPatterns) {
-        const match = line.match(pattern);
-        if (match) {
-          const cleanedAmount = match[1].replace(/[^0-9]/g, '');
-          const amount = parseInt(cleanedAmount);
-          
-          // 妥当な金額範囲（100円〜1億円）かチェック
-          if (!isNaN(amount) && amount >= 100 && amount <= 100000000) {
-            // より大きい金額を採用（領収書の合計金額は通常最大値）
-            if (amount > maxAmount) {
-              maxAmount = amount;
-              totalAmount = amount.toString();
-            }
-          }
-        }
-      }
+    if (uniqueAmounts.length > 0) {
+      maxAmount = uniqueAmounts[0];
+      totalAmount = maxAmount.toString();
+      console.log('✓ 選択された金額:', maxAmount);
+    } else {
+      console.log('⚠ 金額が検出できませんでした');
     }
     
-    console.log('Detected max amount:', maxAmount);
+    console.log('========== 金額抽出終了 ==========');
 
     // 品目を抽出（改善版）
     const itemPatterns = [
