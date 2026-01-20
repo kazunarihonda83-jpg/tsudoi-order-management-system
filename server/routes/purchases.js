@@ -47,6 +47,9 @@ router.post('/orders', (req, res) => {
     const totalAmount = subtotal + taxAmount;
     const orderNumber = `PO${new Date().getFullYear().toString().slice(-2)}${Date.now().toString().slice(-6)}`;
     
+    // デフォルトで納品済みステータスにして自動仕訳を作成
+    const finalStatus = status || 'delivered';
+    
     const result = db.prepare(`
       INSERT INTO purchase_orders (
         order_number, supplier_id, order_date, 
@@ -59,7 +62,7 @@ router.post('/orders', (req, res) => {
       subtotal, 
       taxAmount, 
       totalAmount, 
-      status || 'ordered', 
+      finalStatus, 
       notes, 
       req.user.id
     );
@@ -79,7 +82,7 @@ router.post('/orders', (req, res) => {
     });
     
     // 納品済みの場合、自動仕訳を作成
-    if (status === 'delivered') {
+    if (finalStatus === 'delivered') {
       createJournalFromPurchaseOrder(result.lastInsertRowid);
     }
     

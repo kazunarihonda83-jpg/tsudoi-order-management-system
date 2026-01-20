@@ -48,6 +48,9 @@ router.post('/', (req, res) => {
     const today = new Date();
     const docNumber = `${document_type.charAt(0).toUpperCase()}${today.getFullYear().toString().slice(-2)}${(today.getMonth()+1).toString().padStart(2,'0')}${Date.now().toString().slice(-5)}`;
     
+    // 請求書の場合はデフォルトで発行済み、それ以外は下書き
+    const finalStatus = status || (document_type === 'invoice' ? 'issued' : 'draft');
+    
     const result = db.prepare(`
       INSERT INTO documents (
         document_number, document_type, customer_id, issue_date, 
@@ -65,7 +68,7 @@ router.post('/', (req, res) => {
       taxAmount, 
       totalAmount, 
       notes, 
-      status || 'draft',
+      finalStatus,
       req.user.id
     );
     
@@ -83,8 +86,9 @@ router.post('/', (req, res) => {
       );
     });
     
-    // 請求書で発行済みの場合、自動仕訳を作成
-    if (document_type === 'invoice' && (status === 'issued' || !status)) {
+    // 請求書の場合、デフォルトで発行済みとして自動仕訳を作成
+    const finalStatus = status || (document_type === 'invoice' ? 'issued' : 'draft');
+    if (document_type === 'invoice' && finalStatus === 'issued') {
       createJournalFromDocument(result.lastInsertRowid, document_type);
     }
     
