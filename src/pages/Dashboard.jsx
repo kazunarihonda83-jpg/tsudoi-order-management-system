@@ -14,6 +14,7 @@ export default function Dashboard() {
     monthlyExpenses: 0
   });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -21,35 +22,35 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
-      const [customers, suppliers, documents, purchaseOrders, profitLoss] = await Promise.all([
-        api.get('/customers'),
-        api.get('/suppliers'),
-        api.get('/documents'),
-        api.get('/purchases/orders'),
-        api.get('/accounting/profit-loss')
+      const [customers, suppliers, documents, purchaseOrders] = await Promise.all([
+        api.get('/customers').catch(err => ({ data: [] })),
+        api.get('/suppliers').catch(err => ({ data: [] })),
+        api.get('/documents').catch(err => ({ data: [] })),
+        api.get('/purchases/orders').catch(err => ({ data: [] }))
       ]);
 
       // 今月の収益と支出を計算
       const currentMonth = new Date().toISOString().slice(0, 7);
-      const monthlyDocs = documents.data.filter(doc => doc.issue_date?.startsWith(currentMonth));
+      const monthlyDocs = (documents.data || []).filter(doc => doc.issue_date?.startsWith(currentMonth));
       const monthlyRevenue = monthlyDocs.reduce((sum, doc) => sum + (doc.total_amount || 0), 0);
       
-      const monthlyPOs = purchaseOrders.data.filter(po => po.order_date?.startsWith(currentMonth));
+      const monthlyPOs = (purchaseOrders.data || []).filter(po => po.order_date?.startsWith(currentMonth));
       const monthlyExpenses = monthlyPOs.reduce((sum, po) => sum + (po.total_amount || 0), 0);
 
       setStats({
-        totalCustomers: customers.data.length,
-        totalSuppliers: suppliers.data.length,
-        totalDocuments: documents.data.length,
-        totalPurchaseOrders: purchaseOrders.data.length,
-        recentDocuments: documents.data.slice(0, 5),
-        recentPurchaseOrders: purchaseOrders.data.slice(0, 5),
+        totalCustomers: (customers.data || []).length,
+        totalSuppliers: (suppliers.data || []).length,
+        totalDocuments: (documents.data || []).length,
+        totalPurchaseOrders: (purchaseOrders.data || []).length,
+        recentDocuments: (documents.data || []).slice(0, 5),
+        recentPurchaseOrders: (purchaseOrders.data || []).slice(0, 5),
         monthlyRevenue,
         monthlyExpenses
       });
       setLoading(false);
     } catch (error) {
       console.error('Dashboard load error:', error);
+      setError(error.message || 'データの読み込みに失敗しました');
       setLoading(false);
     }
   };
@@ -64,7 +65,28 @@ export default function Dashboard() {
     return labels[status] || status;
   };
 
-  if (loading) return <div>読み込み中...</div>;
+  if (loading) return <div style={{ padding: '50px', textAlign: 'center', fontSize: '18px' }}>読み込み中...</div>;
+  
+  if (error) return (
+    <div style={{ padding: '50px', textAlign: 'center' }}>
+      <div style={{ color: '#f44336', fontSize: '18px', marginBottom: '20px' }}>エラーが発生しました</div>
+      <div style={{ color: '#757575' }}>{error}</div>
+      <button 
+        onClick={loadDashboardData}
+        style={{
+          marginTop: '20px',
+          padding: '10px 20px',
+          background: '#1976d2',
+          color: 'white',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer'
+        }}
+      >
+        再読み込み
+      </button>
+    </div>
+  );
 
   return (
     <div>

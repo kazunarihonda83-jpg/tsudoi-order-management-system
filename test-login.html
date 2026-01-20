@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head><title>Test Login</title></head>
+<body>
+  <h1>Login Test</h1>
+  <button onclick="testLogin()">Test Login API</button>
+  <pre id="result"></pre>
+  
+  <script>
+    async function testLogin() {
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: '13湯麺集TSUDOI',
+            password: 'admin123'
+          })
+        });
+        const data = await response.json();
+        document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+        
+        // Test /api/auth/me
+        const meResponse = await fetch('/api/auth/me', {
+          headers: { 'Authorization': `Bearer ${data.token}` }
+        });
+        const meData = await meResponse.json();
+        document.getElementById('result').textContent += '\n\n/api/auth/me:\n' + JSON.stringify(meData, null, 2);
+      } catch (error) {
+        document.getElementById('result').textContent = 'Error: ' + error.message;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Home, Users, FileText, Package, ShoppingCart, Calculator, LogOut, Warehouse } from 'lucide-react';
+import { Home, Users, FileText, Package, ShoppingCart, Calculator, LogOut, Warehouse, Camera } from 'lucide-react';
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();

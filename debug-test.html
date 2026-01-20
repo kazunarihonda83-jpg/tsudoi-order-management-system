@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head><title>Debug Test</title></head>
+<body>
+<h1>Debug Info</h1>
+<div id="output"></div>
+<script>
+window.onerror = function(msg, url, line, col, error) {
+  document.getElementById('output').innerHTML += 
+    '<p style="color: red;">Error: ' + msg + 
+    '<br>URL: ' + url + 
+    '<br>Line: ' + line + 
+    '<br>Column: ' + col + 
+    '<br>Error object: ' + JSON.stringify(error) + '</p>';
+  return false;
+};
+
+// Test basic React
+fetch('https://3005-iwz00ie3gdkhvxpx2ni1z-82b888ba.sandbox.novita.ai/src/main.jsx')
+  .then(r => r.text())
+  .then(text => {
+    document.getElementById('output').innerHTML += '<pre>' + text.substring(0, 500) + '</pre>';
+  })
+  .catch(err => {
+    document.getElementById('output').innerHTML += '<p style="color: red;">Fetch error: ' + err.message + '</p>';
+  });
+</script>
+</body>
+</html>

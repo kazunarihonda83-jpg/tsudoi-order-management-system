@@ -266,6 +266,21 @@ export function initDatabase() {
       FOREIGN KEY (inventory_id) REFERENCES inventory (id) ON DELETE CASCADE,
       FOREIGN KEY (resolved_by) REFERENCES administrators (id)
     );
+
+    -- 経費テーブル（領収書OCR用）
+    CREATE TABLE IF NOT EXISTS expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date DATE NOT NULL,
+      vendor TEXT NOT NULL,
+      amount REAL NOT NULL,
+      category TEXT,
+      description TEXT,
+      receipt_image TEXT,
+      created_by INTEGER,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (created_by) REFERENCES administrators (id)
+    );
   `);
 
   // Create default accounts if they don't exist
@@ -531,35 +546,35 @@ export function initDatabase() {
   if (inventoryCount.count === 0) {
     console.log('Creating default inventory...');
     
-    const fish = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('北海道鮮魚卸');
-    const sake = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('札幌酒類販売');
-    const vegetables = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('道産野菜センター');
-    const meat = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('北の食肉センター');
+    const noodles = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('千葉食材センター');
+    const vegetables = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('関東青果市場');
+    const meat = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('東京食肉卸');
+    const seasoning = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('調味料専門店');
 
     const defaultInventory = [
-      // 鮮魚
-      { item_name: '本マグロ', category: '鮮魚', supplier_id: fish.id, unit: 'kg', current_stock: 5.5, reorder_point: 3, optimal_stock: 10, unit_cost: 3500, expiry_date: '2025-01-25', storage_location: '冷蔵庫A' },
-      { item_name: 'サーモン', category: '鮮魚', supplier_id: fish.id, unit: 'kg', current_stock: 8, reorder_point: 5, optimal_stock: 15, unit_cost: 2200, expiry_date: '2025-01-26', storage_location: '冷蔵庫A' },
-      { item_name: 'ホタテ', category: '鮮魚', supplier_id: fish.id, unit: 'kg', current_stock: 3, reorder_point: 2, optimal_stock: 8, unit_cost: 3000, expiry_date: '2025-01-24', storage_location: '冷蔵庫A' },
-      { item_name: 'イカ', category: '鮮魚', supplier_id: fish.id, unit: 'kg', current_stock: 4.5, reorder_point: 3, optimal_stock: 10, unit_cost: 1800, expiry_date: '2025-01-25', storage_location: '冷蔵庫A' },
+      // 麺類
+      { item_name: '中華麺（細麺）', category: '麺類', supplier_id: noodles?.id, unit: 'kg', current_stock: 20, reorder_point: 10, optimal_stock: 40, unit_cost: 280, expiry_date: '2026-01-25', storage_location: '冷蔵庫A' },
+      { item_name: '中華麺（太麺）', category: '麺類', supplier_id: noodles?.id, unit: 'kg', current_stock: 15, reorder_point: 10, optimal_stock: 30, unit_cost: 300, expiry_date: '2026-01-25', storage_location: '冷蔵庫A' },
+      { item_name: '自家製麺', category: '麺類', supplier_id: noodles?.id, unit: 'kg', current_stock: 8, reorder_point: 5, optimal_stock: 15, unit_cost: 450, expiry_date: '2026-01-23', storage_location: '冷蔵庫A' },
       
-      // 酒類
-      { item_name: '獺祭 純米大吟醸', category: '日本酒', supplier_id: sake.id, unit: '本', current_stock: 12, reorder_point: 5, optimal_stock: 20, unit_cost: 2800, storage_location: '酒蔵' },
-      { item_name: '久保田 千寿', category: '日本酒', supplier_id: sake.id, unit: '本', current_stock: 8, reorder_point: 4, optimal_stock: 15, unit_cost: 2300, storage_location: '酒蔵' },
-      { item_name: 'サッポロクラシック', category: 'ビール', supplier_id: sake.id, unit: '本', current_stock: 48, reorder_point: 24, optimal_stock: 96, unit_cost: 250, storage_location: '冷蔵庫B' },
-      { item_name: 'いいちこ', category: '焼酎', supplier_id: sake.id, unit: '本', current_stock: 6, reorder_point: 3, optimal_stock: 12, unit_cost: 1200, storage_location: '酒蔵' },
-      
-      // 野菜
-      { item_name: 'じゃがいも', category: '野菜', supplier_id: vegetables.id, unit: 'kg', current_stock: 15, reorder_point: 10, optimal_stock: 30, unit_cost: 180, expiry_date: '2025-02-15', storage_location: '倉庫' },
-      { item_name: '玉ねぎ', category: '野菜', supplier_id: vegetables.id, unit: 'kg', current_stock: 12, reorder_point: 8, optimal_stock: 25, unit_cost: 150, expiry_date: '2025-02-20', storage_location: '倉庫' },
-      { item_name: 'アスパラガス', category: '野菜', supplier_id: vegetables.id, unit: 'kg', current_stock: 2, reorder_point: 2, optimal_stock: 5, unit_cost: 800, expiry_date: '2025-01-27', storage_location: '冷蔵庫C' },
-      { item_name: '大根', category: '野菜', supplier_id: vegetables.id, unit: '本', current_stock: 8, reorder_point: 5, optimal_stock: 15, unit_cost: 120, expiry_date: '2025-02-01', storage_location: '冷蔵庫C' },
+      // 青果
+      { item_name: 'ネギ', category: '青果', supplier_id: vegetables?.id, unit: 'kg', current_stock: 5, reorder_point: 3, optimal_stock: 10, unit_cost: 350, expiry_date: '2026-01-27', storage_location: '冷蔵庫B' },
+      { item_name: 'もやし', category: '青果', supplier_id: vegetables?.id, unit: 'kg', current_stock: 8, reorder_point: 5, optimal_stock: 15, unit_cost: 150, expiry_date: '2026-01-24', storage_location: '冷蔵庫B' },
+      { item_name: 'メンマ', category: '青果', supplier_id: vegetables?.id, unit: 'kg', current_stock: 3, reorder_point: 2, optimal_stock: 8, unit_cost: 800, expiry_date: '2026-02-15', storage_location: '倉庫' },
+      { item_name: '白菜', category: '青果', supplier_id: vegetables?.id, unit: 'kg', current_stock: 6, reorder_point: 4, optimal_stock: 12, unit_cost: 200, expiry_date: '2026-01-30', storage_location: '冷蔵庫B' },
+      { item_name: 'ニラ', category: '青果', supplier_id: vegetables?.id, unit: 'kg', current_stock: 2, reorder_point: 2, optimal_stock: 6, unit_cost: 400, expiry_date: '2026-01-26', storage_location: '冷蔵庫B' },
       
       // 食肉
-      { item_name: 'ラム肉（ジンギスカン用）', category: '食肉', supplier_id: meat.id, unit: 'kg', current_stock: 10, reorder_point: 5, optimal_stock: 20, unit_cost: 2800, expiry_date: '2025-01-30', storage_location: '冷凍庫A' },
-      { item_name: '豚バラ肉', category: '食肉', supplier_id: meat.id, unit: 'kg', current_stock: 8, reorder_point: 5, optimal_stock: 15, unit_cost: 1600, expiry_date: '2025-01-28', storage_location: '冷蔵庫D' },
-      { item_name: '鶏もも肉', category: '食肉', supplier_id: meat.id, unit: 'kg', current_stock: 6, reorder_point: 4, optimal_stock: 12, unit_cost: 1400, expiry_date: '2025-01-29', storage_location: '冷蔵庫D' },
-      { item_name: '牛タン', category: '食肉', supplier_id: meat.id, unit: 'kg', current_stock: 3, reorder_point: 2, optimal_stock: 8, unit_cost: 4500, expiry_date: '2025-01-27', storage_location: '冷凍庫A' }
+      { item_name: '豚バラ肉（チャーシュー用）', category: '食肉', supplier_id: meat?.id, unit: 'kg', current_stock: 12, reorder_point: 8, optimal_stock: 20, unit_cost: 1800, expiry_date: '2026-01-28', storage_location: '冷蔵庫C' },
+      { item_name: '豚ロース', category: '食肉', supplier_id: meat?.id, unit: 'kg', current_stock: 8, reorder_point: 5, optimal_stock: 15, unit_cost: 2200, expiry_date: '2026-01-28', storage_location: '冷蔵庫C' },
+      { item_name: '鶏ガラ', category: '食肉', supplier_id: meat?.id, unit: 'kg', current_stock: 15, reorder_point: 10, optimal_stock: 25, unit_cost: 500, expiry_date: '2026-01-27', storage_location: '冷凍庫' },
+      
+      // 調味料
+      { item_name: '醤油', category: '調味料', supplier_id: seasoning?.id, unit: 'L', current_stock: 20, reorder_point: 10, optimal_stock: 40, unit_cost: 600, storage_location: '倉庫' },
+      { item_name: '味噌', category: '調味料', supplier_id: seasoning?.id, unit: 'kg', current_stock: 15, reorder_point: 8, optimal_stock: 30, unit_cost: 800, storage_location: '倉庫' },
+      { item_name: '塩', category: '調味料', supplier_id: seasoning?.id, unit: 'kg', current_stock: 10, reorder_point: 5, optimal_stock: 20, unit_cost: 300, storage_location: '倉庫' },
+      { item_name: 'ラー油', category: '調味料', supplier_id: seasoning?.id, unit: 'L', current_stock: 5, reorder_point: 3, optimal_stock: 10, unit_cost: 1200, storage_location: '倉庫' },
+      { item_name: '香辛料セット', category: '調味料', supplier_id: seasoning?.id, unit: 'セット', current_stock: 3, reorder_point: 2, optimal_stock: 6, unit_cost: 2500, storage_location: '倉庫' }
     ];
 
     const invStmt = db.prepare(`
@@ -569,7 +584,7 @@ export function initDatabase() {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    const admin = db.prepare('SELECT id FROM administrators WHERE username = ?').get('食彩厨房やくも');
+    const admin = db.prepare('SELECT id FROM administrators WHERE username = ?').get('13湯麺集TSUDOI');
     const movementStmt = db.prepare(`
       INSERT INTO inventory_movements (
         inventory_id, movement_type, quantity, unit_cost, reference_type, notes, performed_by
