@@ -281,15 +281,6 @@ export default function ReceiptOCR() {
     }
     
     console.log('Detected max amount:', maxAmount);
-    
-    console.log('========== OCR Parse Summary ==========');
-    console.log('Store Name:', storeName);
-    console.log('Recipient Name:', recipientName);
-    console.log('Date:', date);
-    console.log('Total Amount:', totalAmount);
-    console.log('Purpose:', purpose);
-    console.log('Items:', items);
-    console.log('=======================================');
 
     // 品目を抽出（改善版）
     const itemPatterns = [
@@ -323,6 +314,15 @@ export default function ReceiptOCR() {
         }
       }
     }
+    
+    console.log('========== OCR Parse Summary ==========');
+    console.log('Store Name:', storeName);
+    console.log('Recipient Name:', recipientName);
+    console.log('Date:', date);
+    console.log('Total Amount:', totalAmount);
+    console.log('Purpose:', purpose);
+    console.log('Items:', items);
+    console.log('=======================================');
 
     setReceiptData({
       store_name: storeName,
