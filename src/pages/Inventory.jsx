@@ -220,14 +220,33 @@ export default function Inventory() {
     if (!confirm('最終確認：全ての在庫データ、移動履歴、アラートが削除されます。続けますか？')) return;
     
     try {
+      // まず状態を即座にクリア
+      setInventory([]);
+      setFilteredInventory([]);
+      setStats({
+        total_items: 0,
+        low_stock_items: 0,
+        total_value: 0,
+        expiring_soon: 0,
+        categories: []
+      });
+      setAlerts([]);
+      
+      // バックエンドで削除
       await api.delete('/inventory/bulk-delete');
       alert('在庫データを全て削除しました');
-      fetchInventory();
-      fetchStats();
-      fetchAlerts();
+      
+      // 念のため再取得
+      await fetchInventory();
+      await fetchStats();
+      await fetchAlerts();
     } catch (error) {
       console.error('Error bulk deleting inventory:', error);
       alert('一括削除に失敗しました');
+      // エラー時は再取得
+      fetchInventory();
+      fetchStats();
+      fetchAlerts();
     }
   };
 
