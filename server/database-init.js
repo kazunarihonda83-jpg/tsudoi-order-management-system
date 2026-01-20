@@ -539,10 +539,21 @@ export function initDatabase() {
     }
   }
 
-  // Create default inventory if it doesn't exist
-  const inventoryCount = db.prepare('SELECT COUNT(*) as count FROM inventory').get();
-  if (inventoryCount.count === 0) {
-    console.log('Creating default inventory...');
+  // セットアップ状態を管理するテーブルを作成（存在しない場合）
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS system_setup (
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // 在庫の初期セットアップが完了しているかチェック
+  const inventorySetup = db.prepare('SELECT value FROM system_setup WHERE key = ?').get('inventory_initialized');
+  
+  // 初回セットアップ時のみデフォルト在庫を作成
+  if (!inventorySetup) {
+    console.log('Creating default inventory (first time setup)...');
     
     const noodles = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('千葉食材センター');
     const vegetables = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('関東青果市場');
@@ -656,6 +667,13 @@ export function initDatabase() {
     }
 
     console.log('Inventory alerts created successfully');
+    
+    // 在庫の初期セットアップ完了をマーク
+    db.prepare('INSERT OR REPLACE INTO system_setup (key, value) VALUES (?, ?)').run(
+      'inventory_initialized',
+      'true'
+    );
+    console.log('Inventory initialization completed and marked');
   }
 
   return db;
