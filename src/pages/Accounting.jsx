@@ -420,28 +420,28 @@ export default function Accounting() {
           </div>
 
           <div style={{ maxWidth: '600px', margin: '0 auto' }}>
-            <div style={{ marginBottom: '30px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '15px', background: '#f6ffed', borderRadius: '8px', marginBottom: '10px' }}>
-                <span style={{ fontSize: '16px', fontWeight: '600', color: '#52c41a' }}>売上高</span>
-                <span style={{ fontSize: '18px', fontWeight: '700', color: '#52c41a' }}>{formatCurrency(profitLoss.revenue || 0)}</span>
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '15px', background: '#f0f9ff', borderRadius: '4px', border: '1px solid #e6f4ff' }}>
+                <span style={{ fontSize: '16px', fontWeight: '500', color: '#333' }}>売上高</span>
+                <span style={{ fontSize: '18px', fontWeight: '600', color: '#52c41a' }}>{formatCurrency(profitLoss.revenue || 0)}</span>
               </div>
             </div>
 
-            <div style={{ marginBottom: '30px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '15px', background: '#fff7e6', borderRadius: '8px', marginBottom: '10px' }}>
-                <span style={{ fontSize: '16px', fontWeight: '600', color: '#fa8c16' }}>経費</span>
-                <span style={{ fontSize: '18px', fontWeight: '700', color: '#fa8c16' }}>{formatCurrency(profitLoss.expenses || 0)}</span>
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '15px', background: '#fffbf0', borderRadius: '4px', border: '1px solid #fff7e6' }}>
+                <span style={{ fontSize: '16px', fontWeight: '500', color: '#333' }}>経費</span>
+                <span style={{ fontSize: '18px', fontWeight: '600', color: '#fa8c16' }}>{formatCurrency(profitLoss.expenses || 0)}</span>
               </div>
             </div>
 
-            <div style={{ borderTop: '3px solid #000', paddingTop: '20px' }}>
+            <div style={{ borderTop: '2px solid #d9d9d9', paddingTop: '20px', marginTop: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', padding: '20px', 
-                background: (profitLoss.revenue - profitLoss.expenses) >= 0 ? 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)' : 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-                borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)', color: 'white' }}>
-                <span style={{ fontSize: '20px', fontWeight: '700' }}>
+                background: (profitLoss.revenue - profitLoss.expenses) >= 0 ? '#f0f9ff' : '#fff1f0',
+                borderRadius: '4px', border: (profitLoss.revenue - profitLoss.expenses) >= 0 ? '2px solid #91d5ff' : '2px solid #ffa39e' }}>
+                <span style={{ fontSize: '18px', fontWeight: '600', color: '#333' }}>
                   {(profitLoss.revenue - profitLoss.expenses) >= 0 ? '当期純利益' : '当期純損失'}
                 </span>
-                <span style={{ fontSize: '24px', fontWeight: '700' }}>
+                <span style={{ fontSize: '22px', fontWeight: '700', color: (profitLoss.revenue - profitLoss.expenses) >= 0 ? '#1890ff' : '#f5222d' }}>
                   {formatCurrency(Math.abs((profitLoss.revenue || 0) - (profitLoss.expenses || 0)))}
                 </span>
               </div>
