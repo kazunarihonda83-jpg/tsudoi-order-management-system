@@ -190,22 +190,18 @@ export function initDatabase() {
     CREATE TABLE IF NOT EXISTS journal_entries (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       entry_date DATE NOT NULL,
-      entry_number TEXT UNIQUE NOT NULL,
       description TEXT,
-      created_by INTEGER,
+      debit_account_id INTEGER NOT NULL,
+      credit_account_id INTEGER NOT NULL,
+      amount REAL NOT NULL DEFAULT 0,
+      notes TEXT,
+      reference_type TEXT,
+      reference_id INTEGER,
+      admin_id INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (created_by) REFERENCES administrators (id)
-    );
-
-    CREATE TABLE IF NOT EXISTS journal_entry_lines (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      journal_entry_id INTEGER NOT NULL,
-      account_id INTEGER NOT NULL,
-      debit_amount REAL DEFAULT 0,
-      credit_amount REAL DEFAULT 0,
-      description TEXT,
-      FOREIGN KEY (journal_entry_id) REFERENCES journal_entries (id) ON DELETE CASCADE,
-      FOREIGN KEY (account_id) REFERENCES accounts (id)
+      FOREIGN KEY (debit_account_id) REFERENCES accounts (id),
+      FOREIGN KEY (credit_account_id) REFERENCES accounts (id),
+      FOREIGN KEY (admin_id) REFERENCES administrators (id)
     );
 
     CREATE TABLE IF NOT EXISTS operation_history (

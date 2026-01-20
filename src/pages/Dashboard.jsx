@@ -11,7 +11,8 @@ export default function Dashboard() {
     recentDocuments: [],
     recentPurchaseOrders: [],
     monthlyRevenue: 0,
-    monthlyExpenses: 0
+    monthlyExpenses: 0,
+    netIncome: 0
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -22,20 +23,24 @@ export default function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
-      const [customers, suppliers, documents, purchaseOrders] = await Promise.all([
+      // 今月の日付範囲を計算
+      const now = new Date();
+      const startDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const endDate = now.toISOString().split('T')[0];
+
+      const [customers, suppliers, documents, purchaseOrders, profitLoss] = await Promise.all([
         api.get('/customers').catch(err => ({ data: [] })),
         api.get('/suppliers').catch(err => ({ data: [] })),
         api.get('/documents').catch(err => ({ data: [] })),
-        api.get('/purchases/orders').catch(err => ({ data: [] }))
+        api.get('/purchases/orders').catch(err => ({ data: [] })),
+        api.get('/accounting/profit-loss', {
+          params: { start_date: startDate, end_date: endDate }
+        }).catch(err => ({ data: { revenue: 0, expenses: 0 } }))
       ]);
 
-      // 今月の収益と支出を計算
-      const currentMonth = new Date().toISOString().slice(0, 7);
-      const monthlyDocs = (documents.data || []).filter(doc => doc.issue_date?.startsWith(currentMonth));
-      const monthlyRevenue = monthlyDocs.reduce((sum, doc) => sum + (doc.total_amount || 0), 0);
-      
-      const monthlyPOs = (purchaseOrders.data || []).filter(po => po.order_date?.startsWith(currentMonth));
-      const monthlyExpenses = monthlyPOs.reduce((sum, po) => sum + (po.total_amount || 0), 0);
+      // 会計帳簿からの正確な収益と支出を使用
+      const monthlyRevenue = profitLoss.data?.revenue || 0;
+      const monthlyExpenses = profitLoss.data?.expenses || 0;
 
       setStats({
         totalCustomers: (customers.data || []).length,
@@ -45,7 +50,8 @@ export default function Dashboard() {
         recentDocuments: (documents.data || []).slice(0, 5),
         recentPurchaseOrders: (purchaseOrders.data || []).slice(0, 5),
         monthlyRevenue,
-        monthlyExpenses
+        monthlyExpenses,
+        netIncome: monthlyRevenue - monthlyExpenses
       });
       setLoading(false);
     } catch (error) {

@@ -1,15 +1,22 @@
 import express from 'express';
 import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { createJournalFromPurchaseOrder } from './accounting.js';
+
 const router = express.Router();
 router.use(authenticateToken);
 
 router.get('/orders', (req, res) => {
   try {
-    const orders = db.prepare(`SELECT po.*, s.name as supplier_name FROM purchase_orders po 
-      LEFT JOIN suppliers s ON po.supplier_id = s.id ORDER BY po.order_date DESC`).all();
+    const orders = db.prepare(`
+      SELECT po.*, s.name as supplier_name 
+      FROM purchase_orders po 
+      LEFT JOIN suppliers s ON po.supplier_id = s.id 
+      ORDER BY po.order_date DESC
+    `).all();
     res.json(orders);
   } catch (error) {
+    console.error('Error getting purchase orders:', error);
     res.status(500).json({ error: 'Failed to get purchase orders' });
   }
 });
@@ -18,29 +25,68 @@ router.get('/orders/:id', (req, res) => {
   try {
     const order = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(req.params.id);
     if (!order) return res.status(404).json({ error: 'Purchase order not found' });
+    
     const items = db.prepare('SELECT * FROM purchase_order_items WHERE purchase_order_id = ?').all(req.params.id);
     res.json({ ...order, items });
   } catch (error) {
+    console.error('Error getting purchase order:', error);
     res.status(500).json({ error: 'Failed to get purchase order' });
   }
 });
 
 router.post('/orders', (req, res) => {
   try {
-    const { supplier_id, order_date, items, notes } = req.body;
+    const { supplier_id, order_date, items, notes, status } = req.body;
+    
     let subtotal = 0;
-    items.forEach(item => { subtotal += item.unit_price * item.quantity; });
+    items.forEach(item => { 
+      subtotal += item.unit_price * item.quantity; 
+    });
+    
     const taxAmount = Math.floor(subtotal * 10 / 100);
     const totalAmount = subtotal + taxAmount;
     const orderNumber = `PO${new Date().getFullYear().toString().slice(-2)}${Date.now().toString().slice(-6)}`;
-    const result = db.prepare(`INSERT INTO purchase_orders (order_number, supplier_id, order_date, 
-      subtotal, tax_amount, total_amount, status, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(orderNumber, supplier_id, order_date, subtotal, taxAmount, totalAmount, 'draft', notes, req.user.id);
+    
+    const result = db.prepare(`
+      INSERT INTO purchase_orders (
+        order_number, supplier_id, order_date, 
+        subtotal, tax_amount, total_amount, status, notes, created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      orderNumber, 
+      supplier_id, 
+      order_date, 
+      subtotal, 
+      taxAmount, 
+      totalAmount, 
+      status || 'ordered', 
+      notes, 
+      req.user.id
+    );
+    
     items.forEach(item => {
-      db.prepare(`INSERT INTO purchase_order_items (purchase_order_id, item_name, quantity, unit_price, amount) 
-        VALUES (?, ?, ?, ?, ?)`).run(result.lastInsertRowid, item.product_name, item.quantity, item.unit_price, item.unit_price * item.quantity);
+      db.prepare(`
+        INSERT INTO purchase_order_items (
+          purchase_order_id, item_name, quantity, unit_price, amount
+        ) VALUES (?, ?, ?, ?, ?)
+      `).run(
+        result.lastInsertRowid, 
+        item.product_name, 
+        item.quantity, 
+        item.unit_price, 
+        item.unit_price * item.quantity
+      );
     });
-    res.status(201).json({ id: result.lastInsertRowid, order_number: orderNumber });
+    
+    // 納品済みの場合、自動仕訳を作成
+    if (status === 'delivered') {
+      createJournalFromPurchaseOrder(result.lastInsertRowid);
+    }
+    
+    res.status(201).json({ 
+      id: result.lastInsertRowid, 
+      order_number: orderNumber 
+    });
   } catch (error) {
     console.error('Create purchase order error:', error);
     res.status(500).json({ error: 'Failed to create purchase order' });
@@ -49,19 +95,60 @@ router.post('/orders', (req, res) => {
 
 router.put('/orders/:id', (req, res) => {
   try {
-    const { supplier_id, order_date, items, notes } = req.body;
+    const { supplier_id, order_date, items, notes, status, actual_delivery_date } = req.body;
+    
     let subtotal = 0;
-    items.forEach(item => { subtotal += item.unit_price * item.quantity; });
+    items.forEach(item => { 
+      subtotal += item.unit_price * item.quantity; 
+    });
+    
     const taxAmount = Math.floor(subtotal * 10 / 100);
     const totalAmount = subtotal + taxAmount;
-    db.prepare(`UPDATE purchase_orders SET supplier_id = ?, order_date = ?, 
-      subtotal = ?, tax_amount = ?, total_amount = ?, notes = ? WHERE id = ?`)
-      .run(supplier_id, order_date, subtotal, taxAmount, totalAmount, notes, req.params.id);
+    
+    db.prepare(`
+      UPDATE purchase_orders SET 
+        supplier_id = ?, 
+        order_date = ?, 
+        subtotal = ?, 
+        tax_amount = ?, 
+        total_amount = ?, 
+        notes = ?,
+        status = ?,
+        actual_delivery_date = ?
+      WHERE id = ?
+    `).run(
+      supplier_id, 
+      order_date, 
+      subtotal, 
+      taxAmount, 
+      totalAmount, 
+      notes,
+      status || 'ordered',
+      actual_delivery_date || null,
+      req.params.id
+    );
+    
     db.prepare('DELETE FROM purchase_order_items WHERE purchase_order_id = ?').run(req.params.id);
+    
     items.forEach(item => {
-      db.prepare(`INSERT INTO purchase_order_items (purchase_order_id, item_name, quantity, unit_price, amount) 
-        VALUES (?, ?, ?, ?, ?)`).run(req.params.id, item.product_name, item.quantity, item.unit_price, item.unit_price * item.quantity);
+      db.prepare(`
+        INSERT INTO purchase_order_items (
+          purchase_order_id, item_name, quantity, unit_price, amount
+        ) VALUES (?, ?, ?, ?, ?)
+      `).run(
+        req.params.id, 
+        item.product_name, 
+        item.quantity, 
+        item.unit_price, 
+        item.unit_price * item.quantity
+      );
     });
+    
+    // 納品済みの場合、自動仕訳を更新
+    if (status === 'delivered') {
+      createJournalFromPurchaseOrder(req.params.id);
+    }
+    
     const order = db.prepare('SELECT * FROM purchase_orders WHERE id = ?').get(req.params.id);
     res.json(order);
   } catch (error) {
@@ -72,11 +159,45 @@ router.put('/orders/:id', (req, res) => {
 
 router.delete('/orders/:id', (req, res) => {
   try {
+    // 関連する自動仕訳を削除
+    db.prepare(`
+      DELETE FROM journal_entries 
+      WHERE reference_type = 'purchase_order' 
+      AND reference_id = ?
+    `).run(req.params.id);
+    
+    // 発注書と明細を削除
     db.prepare('DELETE FROM purchase_order_items WHERE purchase_order_id = ?').run(req.params.id);
     db.prepare('DELETE FROM purchase_orders WHERE id = ?').run(req.params.id);
+    
     res.json({ message: 'Purchase order deleted successfully' });
   } catch (error) {
+    console.error('Error deleting purchase order:', error);
     res.status(500).json({ error: 'Failed to delete purchase order' });
+  }
+});
+
+// ステータス更新専用エンドポイント
+router.patch('/orders/:id/status', (req, res) => {
+  try {
+    const { status, actual_delivery_date } = req.body;
+    
+    db.prepare(`
+      UPDATE purchase_orders SET 
+        status = ?,
+        actual_delivery_date = ?
+      WHERE id = ?
+    `).run(status, actual_delivery_date || null, req.params.id);
+    
+    // 納品済みに変更された場合、自動仕訳を作成
+    if (status === 'delivered') {
+      createJournalFromPurchaseOrder(req.params.id);
+    }
+    
+    res.json({ message: 'Status updated successfully' });
+  } catch (error) {
+    console.error('Error updating status:', error);
+    res.status(500).json({ error: 'Failed to update status' });
   }
 });
 

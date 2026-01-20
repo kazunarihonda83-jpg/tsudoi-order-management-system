@@ -278,8 +278,15 @@ export default function Accounting() {
             </thead>
             <tbody>
               {journalEntries.map((entry) => (
-                <tr key={entry.id} style={{ borderBottom: '1px solid #f0f0f0' }}>
-                  <td style={{ padding: '12px' }}>{entry.entry_date}</td>
+                <tr key={entry.id} style={{ borderBottom: '1px solid #f0f0f0', background: entry.reference_type ? '#f9f9f9' : 'white' }}>
+                  <td style={{ padding: '12px' }}>
+                    {entry.entry_date}
+                    {entry.reference_type && (
+                      <span style={{ marginLeft: '8px', padding: '2px 6px', background: '#e6f7ff', color: '#1890ff', borderRadius: '4px', fontSize: '10px', fontWeight: 'bold' }}>
+                        自動
+                      </span>
+                    )}
+                  </td>
                   <td style={{ padding: '12px' }}>{entry.description}</td>
                   <td style={{ padding: '12px', fontFamily: 'monospace', fontSize: '13px' }}>
                     {entry.debit_account_code} {entry.debit_account_name}
@@ -291,13 +298,19 @@ export default function Accounting() {
                     {formatCurrency(entry.amount)}
                   </td>
                   <td style={{ padding: '12px', textAlign: 'center' }}>
-                    <button onClick={() => handleDelete(entry.id)}
-                      className="btn-icon btn-danger"
-                      style={{ padding: '6px', background: 'transparent', border: '1px solid #ff4d4f',
-                        color: '#ff4d4f', borderRadius: '4px', cursor: 'pointer' }}
-                      title="削除">
-                      <Trash2 size={14} />
-                    </button>
+                    {entry.reference_type ? (
+                      <span style={{ fontSize: '11px', color: '#999', fontStyle: 'italic' }}>
+                        自動生成
+                      </span>
+                    ) : (
+                      <button onClick={() => handleDelete(entry.id)}
+                        className="btn-icon btn-danger"
+                        style={{ padding: '6px', background: 'transparent', border: '1px solid #ff4d4f',
+                          color: '#ff4d4f', borderRadius: '4px', cursor: 'pointer' }}
+                        title="削除">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
