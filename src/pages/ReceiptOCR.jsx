@@ -95,6 +95,39 @@ export default function ReceiptOCR() {
     });
   };
 
+  // 画像を圧縮してBase64に変換
+  const compressImage = (imageFile) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 最大幅を1200pxに制限（アスペクト比維持）
+        const maxWidth = 1200;
+        let width = img.width;
+        let height = img.height;
+        
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // 画像を描画
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // JPEG形式で圧縮（品質80%）
+        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
+        resolve(compressedBase64);
+      };
+      img.onerror = reject;
+      img.src = URL.createObjectURL(imageFile);
+    });
+  };
+
   // AI解析（推奨）
   const handleAIAnalyze = async () => {
     if (!image) {
@@ -106,11 +139,15 @@ export default function ReceiptOCR() {
     setProgress(50); // AI解析は進捗が見えないので固定値
 
     try {
+      console.log('画像を圧縮中...');
+      const compressedImage = await compressImage(image);
+      console.log('圧縮後のサイズ:', (compressedImage.length / 1024).toFixed(2), 'KB');
+      
       console.log('AI解析開始...');
       
-      // Base64エンコードされた画像を使用
+      // 圧縮画像を使用
       const response = await api.post('/ocr/analyze', {
-        image: imagePreview
+        image: compressedImage
       });
 
       console.log('AI解析結果:', response.data);
