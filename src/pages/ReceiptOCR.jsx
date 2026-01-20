@@ -95,94 +95,6 @@ export default function ReceiptOCR() {
     });
   };
 
-  // 画像を圧縮してBase64に変換
-  const compressImage = (imageFile) => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        
-        // 最大幅を1200pxに制限（アスペクト比維持）
-        const maxWidth = 1200;
-        let width = img.width;
-        let height = img.height;
-        
-        if (width > maxWidth) {
-          height = (height * maxWidth) / width;
-          width = maxWidth;
-        }
-        
-        canvas.width = width;
-        canvas.height = height;
-        
-        // 画像を描画
-        ctx.drawImage(img, 0, 0, width, height);
-        
-        // JPEG形式で圧縮（品質80%）
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.8);
-        resolve(compressedBase64);
-      };
-      img.onerror = reject;
-      img.src = URL.createObjectURL(imageFile);
-    });
-  };
-
-  // AI解析（推奨）
-  const handleAIAnalyze = async () => {
-    if (!image) {
-      alert('画像を選択してください');
-      return;
-    }
-
-    setLoading(true);
-    setProgress(50); // AI解析は進捗が見えないので固定値
-
-    try {
-      console.log('画像を圧縮中...');
-      const compressedImage = await compressImage(image);
-      console.log('圧縮後のサイズ:', (compressedImage.length / 1024).toFixed(2), 'KB');
-      
-      console.log('AI解析開始...');
-      
-      // 圧縮画像を使用
-      const response = await api.post('/ocr/analyze', {
-        image: compressedImage
-      });
-
-      console.log('AI解析結果:', response.data);
-      
-      if (response.data.success && response.data.data) {
-        const aiData = response.data.data;
-        
-        setReceiptData({
-          store_name: user?.username || '13湯麺集TSUDOI', // ログインユーザー名を使用
-          recipient_name: aiData.recipient_name || '',
-          date: aiData.date || '',
-          total_amount: aiData.total_amount || '',
-          purpose: aiData.purpose || '',
-          items: [],
-          notes: ''
-        });
-        
-        setOcrResult(response.data.raw); // デバッグ用に生のAI応答を保存
-        setEditMode(true);
-        
-        alert('✅ AI解析完了！\n\n抽出されたデータを確認してください。');
-      } else {
-        throw new Error('AI応答が不正です');
-      }
-      
-    } catch (error) {
-      console.error('AI解析エラー:', error);
-      const errorMessage = error.response?.data?.error || error.message;
-      alert('AI解析に失敗しました: ' + errorMessage + '\n\n従来のOCRをお試しください。');
-    } finally {
-      setLoading(false);
-      setProgress(0);
-    }
-  };
-
   const handleOCR = async () => {
     if (!image) {
       alert('画像を選択してください');
@@ -761,21 +673,6 @@ export default function ReceiptOCR() {
               <img src={imagePreview} alt="Receipt" style={{ maxWidth: '100%', maxHeight: '400px', marginBottom: '20px', border: '1px solid #ddd', borderRadius: '4px' }} />
               <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
                 <button 
-                  onClick={handleAIAnalyze}
-                  disabled={loading}
-                  style={{ 
-                    padding: '10px 20px', 
-                    background: loading ? '#999' : '#1890ff', 
-                    color: 'white', 
-                    border: 'none', 
-                    borderRadius: '4px', 
-                    cursor: loading ? 'not-allowed' : 'pointer',
-                    fontSize: '14px',
-                    fontWeight: 'bold'
-                  }}>
-                  {loading && progress === 50 ? '🤖 AI解析中...' : '🤖 AI解析（推奨）'}
-                </button>
-                <button 
                   onClick={handleOCR}
                   disabled={loading}
                   style={{ 
@@ -788,7 +685,7 @@ export default function ReceiptOCR() {
                     fontSize: '14px',
                     fontWeight: 'bold'
                   }}>
-                  {loading && progress !== 50 ? `🔄 解析中... ${progress}%` : '🔍 従来OCR'}
+                  {loading ? `🔄 解析中... ${progress}%` : '🔍 OCR実行'}
                 </button>
                 <button 
                   onClick={handleReset}
@@ -804,8 +701,8 @@ export default function ReceiptOCR() {
                   リセット
                 </button>
               </div>
-              <div style={{ marginTop: '15px', padding: '10px', background: '#e6f7ff', borderRadius: '4px', fontSize: '13px', color: '#0050b3' }}>
-                💡 <strong>推奨：</strong> 「AI解析」ボタンは様々な領収書フォーマットに対応できます。従来OCRはパターンが限定されます。
+              <div style={{ marginTop: '15px', padding: '10px', background: '#fff7e6', borderRadius: '4px', fontSize: '13px', color: '#ad6800' }}>
+                💡 <strong>ヒント：</strong> OCR後、抽出されたデータを手動で編集できます。画像は明るく、文字がはっきり見えるものを選択してください。
               </div>
             </div>
           )}
