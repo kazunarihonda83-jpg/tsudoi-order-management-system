@@ -17,10 +17,18 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const login = async (username, password) => {
-    const response = await api.post('/auth/login', { username, password });
-    localStorage.setItem('token', response.data.token);
-    setUser(response.data.user);
-    return response.data;
+    try {
+      console.log('ログイン試行:', { username });
+      const response = await api.post('/auth/login', { username, password });
+      console.log('ログイン成功:', response.data);
+      localStorage.setItem('token', response.data.token);
+      setUser(response.data.user);
+      return response.data;
+    } catch (error) {
+      console.error('ログインエラー:', error);
+      console.error('エラー詳細:', error.response?.data || error.message);
+      throw error;
+    }
   };
 
   const logout = () => {

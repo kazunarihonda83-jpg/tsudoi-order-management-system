@@ -11,11 +11,15 @@ export default function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
     try {
+      console.log('ログイン送信:', { username });
       await login(username, password);
       navigate('/');
     } catch (err) {
-      setError('ログインに失敗しました');
+      console.error('ログイン失敗:', err);
+      const errorMessage = err.response?.data?.error || err.message || 'ログインに失敗しました';
+      setError(errorMessage);
     }
   };
 
