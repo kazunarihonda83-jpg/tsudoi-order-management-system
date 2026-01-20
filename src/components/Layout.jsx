@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { Home, Users, FileText, Package, ShoppingCart, Calculator, LogOut, Warehouse, Camera } from 'lucide-react';
+import { Home, Users, FileText, Package, ShoppingCart, Calculator, LogOut, Warehouse } from 'lucide-react';
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
@@ -33,9 +33,6 @@ export default function Layout({ children }) {
           </Link>
           <Link to="/inventory" style={{display:'flex',alignItems:'center',gap:'10px',color:'white',textDecoration:'none',padding:'12px',borderRadius:'4px',marginBottom:'5px'}}>
             <Warehouse size={20} /> 在庫管理
-          </Link>
-          <Link to="/receipt-ocr" style={{display:'flex',alignItems:'center',gap:'10px',color:'white',textDecoration:'none',padding:'12px',borderRadius:'4px',marginBottom:'5px',background:'#1890ff'}}>
-            <Camera size={20} /> 領収書OCR
           </Link>
           <Link to="/accounting" style={{display:'flex',alignItems:'center',gap:'10px',color:'white',textDecoration:'none',padding:'12px',borderRadius:'4px',marginBottom:'5px'}}>
             <Calculator size={20} /> 会計帳簿

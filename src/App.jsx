@@ -8,7 +8,6 @@ import Suppliers from './pages/Suppliers';
 import PurchaseOrders from './pages/PurchaseOrders';
 import Accounting from './pages/Accounting';
 import Inventory from './pages/Inventory';
-import ReceiptOCR from './pages/ReceiptOCR';
 import Layout from './components/Layout';
 
 const PrivateRoute = ({ children }) => {
@@ -30,7 +29,6 @@ function AppRoutes() {
       <Route path="/purchases" element={<PrivateRoute><Layout><PurchaseOrders /></Layout></PrivateRoute>} />
       <Route path="/accounting" element={<PrivateRoute><Layout><Accounting /></Layout></PrivateRoute>} />
       <Route path="/inventory" element={<PrivateRoute><Layout><Inventory /></Layout></PrivateRoute>} />
-      <Route path="/receipt-ocr" element={<PrivateRoute><Layout><ReceiptOCR /></Layout></PrivateRoute>} />
     </Routes>
   );
 }
