@@ -329,9 +329,9 @@ function generateDocumentHTML(document, items, isPreview = false) {
         <div class="header-left">
           <div class="company-name">13湯麺集TSUDOI</div>
           <div class="company-info">
-            〒000-0000 東京都○○区○○ 1-2-3<br>
-            TEL: 03-1234-5678 / FAX: 03-1234-5679<br>
-            Email: info@tsudoi-ramen.com
+            〒273-0137 千葉県鎌ヶ谷市道野辺本町2-22-1<br>
+            TEL: 090-9383-8430<br>
+            Email: katonoyuki1989@gmail.com
           </div>
         </div>
         <div class="header-right">
@@ -383,7 +383,7 @@ function generateDocumentHTML(document, items, isPreview = false) {
         </div>
         <div class="info-item">
           <div class="info-label">有効期限</div>
-          <div class="info-value">${document.document_type === 'quotation' ? '発行日より30日間' : '－'}</div>
+          <div class="info-value">${document.valid_until || '－'}</div>
         </div>
       </div>
       
@@ -472,7 +472,7 @@ router.get('/:id', (req, res) => {
 
 router.post('/', (req, res) => {
   try {
-    const { document_type, customer_id, issue_date, tax_type, tax_rate, items, notes, status } = req.body;
+    const { document_type, customer_id, issue_date, valid_until, tax_type, tax_rate, items, notes, status } = req.body;
     
     let subtotal = 0;
     items.forEach(item => { 
@@ -489,15 +489,16 @@ router.post('/', (req, res) => {
     
     const result = db.prepare(`
       INSERT INTO documents (
-        document_number, document_type, customer_id, issue_date, 
+        document_number, document_type, customer_id, issue_date, valid_until,
         tax_type, tax_rate, subtotal, tax_amount, total_amount, 
         notes, status, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       docNumber, 
       document_type, 
       customer_id, 
-      issue_date, 
+      issue_date,
+      valid_until || null,
       tax_type || 'exclusive', 
       tax_rate || 10, 
       subtotal, 
@@ -537,7 +538,7 @@ router.post('/', (req, res) => {
 
 router.put('/:id', (req, res) => {
   try {
-    const { document_type, customer_id, issue_date, tax_type, tax_rate, items, notes, status, payment_date } = req.body;
+    const { document_type, customer_id, issue_date, valid_until, tax_type, tax_rate, items, notes, status, payment_date } = req.body;
     
     let subtotal = 0;
     items.forEach(item => { 
@@ -551,7 +552,8 @@ router.put('/:id', (req, res) => {
       UPDATE documents SET 
         document_type = ?, 
         customer_id = ?, 
-        issue_date = ?, 
+        issue_date = ?,
+        valid_until = ?,
         tax_type = ?, 
         tax_rate = ?, 
         subtotal = ?, 
@@ -564,7 +566,8 @@ router.put('/:id', (req, res) => {
     `).run(
       document_type, 
       customer_id, 
-      issue_date, 
+      issue_date,
+      valid_until || null,
       tax_type || 'exclusive', 
       tax_rate || 10, 
       subtotal, 

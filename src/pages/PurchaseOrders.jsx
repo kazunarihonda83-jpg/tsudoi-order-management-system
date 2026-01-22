@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ShoppingCart, Plus, Trash2, Edit } from 'lucide-react';
+import { ShoppingCart, Plus, Trash2, Edit, FileText } from 'lucide-react';
 import api from '../utils/api';
 
 export default function PurchaseOrders() {
@@ -73,6 +73,21 @@ export default function PurchaseOrders() {
     window.dispatchEvent(new CustomEvent('purchaseOrderUpdated'));
   };
 
+  const handleCreateDocument = async (order) => {
+    try {
+      const response = await api.post(`/purchases/orders/${order.id}/create-document`);
+      alert(`発注書を作成しました！\n書類番号: ${response.data.document_number}`);
+      
+      // 書類管理ページへ移動
+      if (confirm('作成した発注書を確認しますか？')) {
+        window.location.href = '/documents';
+      }
+    } catch (error) {
+      console.error('発注書作成エラー:', error);
+      alert(error.response?.data?.error || '発注書の作成に失敗しました');
+    }
+  };
+
   const addItem = () => setFormData({...formData, items:[...formData.items,{product_name:'',quantity:1,unit_price:0}]});
   const updateItem = (i,f,v) => {
     const items=[...formData.items]; items[i][f]=v; setFormData({...formData,items});
@@ -104,14 +119,18 @@ export default function PurchaseOrders() {
                 <td style={{padding:'12px'}}>{o.order_date}</td>
                 <td style={{padding:'12px',textAlign:'right',fontWeight:'600'}}>¥{o.total_amount?.toLocaleString()}</td>
                 <td style={{padding:'12px',textAlign:'center'}}>
-                  <div style={{display:'flex',gap:'8px',justifyContent:'center'}}>
+                  <div style={{display:'flex',gap:'8px',justifyContent:'center',flexWrap:'wrap'}}>
+                    <button onClick={()=>handleCreateDocument(o)} style={{padding:'6px 12px',background:'#fff',
+                      border:'1px solid #52c41a',color:'#52c41a',borderRadius:'4px',cursor:'pointer',fontSize:'13px'}}>
+                      <FileText size={14} style={{verticalAlign:'middle',marginRight:'4px'}}/> 発注書作成
+                    </button>
                     <button onClick={()=>handleEdit(o)} style={{padding:'6px 12px',background:'#fff',
-                      border:'1px solid #1890ff',color:'#1890ff',borderRadius:'4px',cursor:'pointer'}}>
-                      <Edit size={14}/> 編集
+                      border:'1px solid #1890ff',color:'#1890ff',borderRadius:'4px',cursor:'pointer',fontSize:'13px'}}>
+                      <Edit size={14} style={{verticalAlign:'middle',marginRight:'4px'}}/> 編集
                     </button>
                     <button onClick={()=>handleDelete(o.id)} style={{padding:'6px 12px',background:'#fff',
-                      border:'1px solid #ff4d4f',color:'#ff4d4f',borderRadius:'4px',cursor:'pointer'}}>
-                      <Trash2 size={14}/> 削除
+                      border:'1px solid #ff4d4f',color:'#ff4d4f',borderRadius:'4px',cursor:'pointer',fontSize:'13px'}}>
+                      <Trash2 size={14} style={{verticalAlign:'middle',marginRight:'4px'}}/> 削除
                     </button>
                   </div>
                 </td>

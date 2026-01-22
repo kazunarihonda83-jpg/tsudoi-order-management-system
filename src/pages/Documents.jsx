@@ -14,6 +14,7 @@ export default function Documents() {
     document_type: 'invoice',
     customer_id: '',
     issue_date: new Date().toISOString().split('T')[0],
+    valid_until: '',
     tax_type: 'exclusive',
     tax_rate: 10,
     items: [{ product_name: '', quantity: 1, unit_price: 0, tax_category: 'standard' }],
@@ -77,6 +78,7 @@ export default function Documents() {
         document_type: docData.document_type,
         customer_id: docData.customer_id,
         issue_date: docData.issue_date,
+        valid_until: docData.valid_until || '',
         tax_type: docData.tax_type || 'exclusive',
         tax_rate: docData.tax_rate || 10,
         items: docData.items && docData.items.length > 0 ? docData.items : [{ product_name: '', quantity: 1, unit_price: 0, tax_category: 'standard' }],
@@ -189,6 +191,7 @@ export default function Documents() {
       document_type: 'invoice',
       customer_id: '',
       issue_date: new Date().toISOString().split('T')[0],
+      valid_until: '',
       tax_type: 'exclusive',
       tax_rate: 10,
       items: [{ product_name: '', quantity: 1, unit_price: 0, tax_category: 'standard' }],
@@ -345,10 +348,17 @@ export default function Documents() {
                   </select>
                 </div>
               </div>
-              <div style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>発行日 *</label>
-                <input type="date" value={formData.issue_date} onChange={(e) => setFormData({...formData, issue_date: e.target.value})}
-                  required style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }} />
+              <div style={{ marginBottom: '15px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>発行日 *</label>
+                  <input type="date" value={formData.issue_date} onChange={(e) => setFormData({...formData, issue_date: e.target.value})}
+                    required style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', marginBottom: '5px', fontWeight: '500' }}>有効期限</label>
+                  <input type="date" value={formData.valid_until} onChange={(e) => setFormData({...formData, valid_until: e.target.value})}
+                    style={{ width: '100%', padding: '8px', border: '1px solid #ddd', borderRadius: '4px' }} />
+                </div>
               </div>
               
               <div style={{ marginBottom: '20px' }}>

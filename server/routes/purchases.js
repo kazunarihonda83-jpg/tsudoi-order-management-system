@@ -204,4 +204,85 @@ router.patch('/orders/:id/status', (req, res) => {
   }
 });
 
+// 発注データから発注書を生成
+router.post('/orders/:id/create-document', async (req, res) => {
+  try {
+    const order = db.prepare(`
+      SELECT po.*, s.name as supplier_name, s.address, s.phone, s.email
+      FROM purchase_orders po
+      LEFT JOIN suppliers s ON po.supplier_id = s.id
+      WHERE po.id = ?
+    `).get(req.params.id);
+    
+    if (!order) {
+      return res.status(404).json({ error: 'Purchase order not found' });
+    }
+    
+    const items = db.prepare('SELECT * FROM purchase_order_items WHERE purchase_order_id = ?').all(req.params.id);
+    
+    // 発注書番号を生成
+    const today = new Date();
+    const docNumber = `O${today.getFullYear().toString().slice(-2)}${(today.getMonth()+1).toString().padStart(2,'0')}${Date.now().toString().slice(-5)}`;
+    
+    // 仕入先を顧客として一時的に作成または取得
+    let customer = db.prepare('SELECT * FROM customers WHERE name = ?').get(order.supplier_name);
+    
+    if (!customer) {
+      const result = db.prepare(`
+        INSERT INTO customers (name, address, phone, email, created_by)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(
+        order.supplier_name,
+        order.address || '',
+        order.phone || '',
+        order.email || '',
+        req.user.id
+      );
+      customer = { id: result.lastInsertRowid };
+    }
+    
+    // 発注書を作成
+    const documentResult = db.prepare(`
+      INSERT INTO documents (
+        document_number, document_type, customer_id, issue_date,
+        tax_type, tax_rate, subtotal, tax_amount, total_amount,
+        notes, status, created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      docNumber,
+      'order',
+      customer.id,
+      order.order_date,
+      'exclusive',
+      10,
+      order.subtotal,
+      order.tax_amount,
+      order.total_amount,
+      `発注番号: ${order.order_number}\n${order.notes || ''}`,
+      'issued',
+      req.user.id
+    );
+    
+    // 明細を追加
+    items.forEach(item => {
+      db.prepare(`
+        INSERT INTO document_items (document_id, item_name, quantity, unit_price, amount)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(
+        documentResult.lastInsertRowid,
+        item.product_name,
+        item.quantity,
+        item.unit_price,
+        item.quantity * item.unit_price
+      );
+    });
+    
+    const document = db.prepare('SELECT * FROM documents WHERE id = ?').get(documentResult.lastInsertRowid);
+    res.status(201).json(document);
+  } catch (error) {
+    console.error('Create document from purchase order error:', error);
+    res.status(500).json({ error: 'Failed to create document from purchase order' });
+  }
+});
+
 export default router;

@@ -88,6 +88,7 @@ export function initDatabase() {
       customer_id INTEGER NOT NULL,
       issue_date DATE NOT NULL,
       due_date DATE,
+      valid_until DATE,
       payment_date DATE,
       status TEXT DEFAULT 'draft',
       tax_type TEXT DEFAULT 'exclusive',
