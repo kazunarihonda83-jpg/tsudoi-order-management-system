@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, Plus, Trash2, Search, Edit2, FileDown } from 'lucide-react';
+import { FileText, Plus, Trash2, Search, Edit2, FileDown, Eye } from 'lucide-react';
 import api from '../utils/api';
 
 export default function Documents() {
@@ -91,16 +91,62 @@ export default function Documents() {
 
   const handleDownloadPDF = async (doc) => {
     try {
-      // 仮のPDFダウンロードリンク（モック）
-      const pdfUrl = `/api/documents/${doc.id}/pdf-mock`;
+      // PDF出力（印刷用）
+      const pdfUrl = `${import.meta.env.VITE_API_URL || '/api'}/documents/${doc.id}/pdf`;
+      const token = localStorage.getItem('token');
       
-      // 別ウィンドウで開く
-      window.open(pdfUrl, '_blank');
+      // 認証付きで新しいウィンドウを開く
+      const newWindow = window.open('', '_blank');
       
-      alert(`PDF出力機能（仮実装）\n\n書類番号: ${doc.document_number}\n種類: ${getDocumentTypeLabel(doc.document_type)}\n顧客: ${doc.customer_name}\n金額: ¥${doc.total_amount?.toLocaleString()}\n\n※現在は仮のリンクを表示しています。`);
+      // トークンをクエリパラメータとして追加
+      fetch(pdfUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      .then(response => response.text())
+      .then(html => {
+        newWindow.document.write(html);
+        newWindow.document.close();
+      })
+      .catch(error => {
+        console.error('PDF generation error:', error);
+        newWindow.close();
+        alert('PDF生成に失敗しました');
+      });
     } catch (error) {
       console.error('PDF generation error:', error);
       alert('PDF生成に失敗しました');
+    }
+  };
+
+  const handlePreview = async (doc) => {
+    try {
+      // プレビュー表示
+      const previewUrl = `${import.meta.env.VITE_API_URL || '/api'}/documents/${doc.id}/preview`;
+      const token = localStorage.getItem('token');
+      
+      // 認証付きで新しいウィンドウを開く
+      const newWindow = window.open('', '_blank');
+      
+      fetch(previewUrl, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      .then(response => response.text())
+      .then(html => {
+        newWindow.document.write(html);
+        newWindow.document.close();
+      })
+      .catch(error => {
+        console.error('Preview error:', error);
+        newWindow.close();
+        alert('プレビュー表示に失敗しました');
+      });
+    } catch (error) {
+      console.error('Preview error:', error);
+      alert('プレビュー表示に失敗しました');
     }
   };
 
@@ -234,7 +280,13 @@ export default function Documents() {
                   ¥{doc.total_amount?.toLocaleString()}
                 </td>
                 <td style={{ padding: '12px', textAlign: 'center' }}>
-                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button onClick={() => handlePreview(doc)}
+                      style={{ padding: '6px 12px', background: '#fff', border: '1px solid #1890ff',
+                        color: '#1890ff', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>
+                      <Eye size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
+                      プレビュー
+                    </button>
                     <button onClick={() => handleDownloadPDF(doc)}
                       style={{ padding: '6px 12px', background: '#fff', border: '1px solid #52c41a',
                         color: '#52c41a', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>
@@ -242,8 +294,8 @@ export default function Documents() {
                       PDF出力
                     </button>
                     <button onClick={() => handleEdit(doc)}
-                      style={{ padding: '6px 12px', background: '#fff', border: '1px solid #1890ff',
-                        color: '#1890ff', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>
+                      style={{ padding: '6px 12px', background: '#fff', border: '1px solid #722ed1',
+                        color: '#722ed1', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>
                       <Edit2 size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
                       編集
                     </button>
