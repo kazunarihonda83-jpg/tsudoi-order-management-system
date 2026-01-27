@@ -3,6 +3,115 @@ import db from '../database.js';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// PDFエンドポイント（認証不要）
+// 損益計算書PDF生成
+router.get('/profit-loss/pdf', (req, res) => {
+  try {
+    const { start_date, end_date } = req.query;
+    const params = [];
+    
+    let dateFilter = '';
+    if (start_date) { 
+      dateFilter += ' AND je.entry_date >= ?';
+      params.push(start_date);
+    }
+    if (end_date) { 
+      dateFilter += ' AND je.entry_date <= ?';
+      params.push(end_date);
+    }
+    
+    // 収益の詳細（勘定科目別）
+    const revenueDetails = db.prepare(`
+      SELECT a.account_code, a.account_name, COALESCE(SUM(je.amount), 0) as amount
+      FROM journal_entries je 
+      JOIN accounts a ON je.credit_account_id = a.id 
+      WHERE a.account_type = 'revenue' ${dateFilter}
+      GROUP BY a.id, a.account_code, a.account_name
+      ORDER BY a.account_code
+    `).all(...params);
+    
+    // 費用の詳細（勘定科目別）
+    const expenseDetails = db.prepare(`
+      SELECT a.account_code, a.account_name, COALESCE(SUM(je.amount), 0) as amount
+      FROM journal_entries je 
+      JOIN accounts a ON je.debit_account_id = a.id 
+      WHERE a.account_type = 'expense' ${dateFilter}
+      GROUP BY a.id, a.account_code, a.account_name
+      ORDER BY a.account_code
+    `).all(...params);
+    
+    const revenueTotal = revenueDetails.reduce((sum, item) => sum + item.amount, 0);
+    const expensesTotal = expenseDetails.reduce((sum, item) => sum + item.amount, 0);
+    const netIncome = revenueTotal - expensesTotal;
+    
+    const html = generateProfitLossHTML(revenueDetails, expenseDetails, revenueTotal, expensesTotal, netIncome, start_date, end_date);
+    res.send(html);
+  } catch (error) {
+    console.error('Error generating profit-loss PDF:', error);
+    res.status(500).json({ error: 'Failed to generate PDF' });
+  }
+});
+
+// 貸借対照表PDF生成
+router.get('/balance-sheet/pdf', (req, res) => {
+  try {
+    const { as_of_date } = req.query;
+    const dateFilter = as_of_date ? ' AND je.entry_date <= ?' : '';
+    const params = as_of_date ? [as_of_date] : [];
+    
+    // 資産の詳細（勘定科目別）
+    const assetDetails = db.prepare(`
+      SELECT a.account_code, a.account_name,
+             COALESCE(SUM(CASE WHEN je.debit_account_id = a.id THEN je.amount ELSE 0 END), 0) -
+             COALESCE(SUM(CASE WHEN je.credit_account_id = a.id THEN je.amount ELSE 0 END), 0) as amount
+      FROM accounts a
+      LEFT JOIN journal_entries je ON (je.debit_account_id = a.id OR je.credit_account_id = a.id) ${dateFilter}
+      WHERE a.account_type = 'asset'
+      GROUP BY a.id, a.account_code, a.account_name
+      HAVING amount != 0
+      ORDER BY a.account_code
+    `).all(...params);
+    
+    // 負債の詳細（勘定科目別）
+    const liabilityDetails = db.prepare(`
+      SELECT a.account_code, a.account_name,
+             COALESCE(SUM(CASE WHEN je.credit_account_id = a.id THEN je.amount ELSE 0 END), 0) -
+             COALESCE(SUM(CASE WHEN je.debit_account_id = a.id THEN je.amount ELSE 0 END), 0) as amount
+      FROM accounts a
+      LEFT JOIN journal_entries je ON (je.debit_account_id = a.id OR je.credit_account_id = a.id) ${dateFilter}
+      WHERE a.account_type = 'liability'
+      GROUP BY a.id, a.account_code, a.account_name
+      HAVING amount != 0
+      ORDER BY a.account_code
+    `).all(...params);
+    
+    // 純資産の詳細（勘定科目別）
+    const equityDetails = db.prepare(`
+      SELECT a.account_code, a.account_name,
+             COALESCE(SUM(CASE WHEN je.credit_account_id = a.id THEN je.amount ELSE 0 END), 0) -
+             COALESCE(SUM(CASE WHEN je.debit_account_id = a.id THEN je.amount ELSE 0 END), 0) as amount
+      FROM accounts a
+      LEFT JOIN journal_entries je ON (je.debit_account_id = a.id OR je.credit_account_id = a.id) ${dateFilter}
+      WHERE a.account_type = 'equity'
+      GROUP BY a.id, a.account_code, a.account_name
+      HAVING amount != 0
+      ORDER BY a.account_code
+    `).all(...params);
+    
+    const assetsTotal = assetDetails.reduce((sum, item) => sum + item.amount, 0);
+    const liabilitiesTotal = liabilityDetails.reduce((sum, item) => sum + item.amount, 0);
+    const equityTotal = equityDetails.reduce((sum, item) => sum + item.amount, 0);
+    
+    const html = generateBalanceSheetHTML(assetDetails, liabilityDetails, equityDetails, assetsTotal, liabilitiesTotal, equityTotal, as_of_date);
+    res.send(html);
+  } catch (error) {
+    console.error('Error generating balance-sheet PDF:', error);
+    res.status(500).json({ error: 'Failed to generate PDF' });
+  }
+});
+
+// 認証が必要なエンドポイント
 router.use(authenticateToken);
 
 // 勘定科目一覧取得
@@ -446,6 +555,432 @@ export function createJournalFromInventoryMovement(movementId) {
   } catch (error) {
     console.error('Error creating journal from inventory movement:', error);
   }
+}
+
+// 認証が必要なエンドポイント（PDF生成以外）
+router.use(authenticateToken);
+
+// 損益計算書HTML生成関数
+function generateProfitLossHTML(revenueDetails, expenseDetails, revenueTotal, expensesTotal, netIncome, startDate, endDate) {
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>損益計算書</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'MS PGothic', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif; 
+      background: white;
+      padding: 15mm;
+      font-size: 11pt;
+    }
+    .page { 
+      max-width: 180mm;
+      margin: 0 auto;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #000;
+      padding-bottom: 15px;
+    }
+    .company-name {
+      font-size: 16pt;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .company-info {
+      font-size: 9pt;
+      color: #333;
+      line-height: 1.5;
+    }
+    .doc-title {
+      font-size: 18pt;
+      font-weight: bold;
+      margin: 15px 0 10px 0;
+      text-align: center;
+    }
+    .period {
+      font-size: 10pt;
+      text-align: center;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    
+    th, td {
+      padding: 8px 12px;
+      text-align: left;
+      border-bottom: 1px solid #ccc;
+    }
+    
+    th {
+      background: #f5f5f5;
+      font-weight: bold;
+      border-top: 2px solid #000;
+      border-bottom: 2px solid #000;
+    }
+    
+    td.amount {
+      text-align: right;
+      font-family: 'Courier New', monospace;
+    }
+    
+    tr.section-header td {
+      font-weight: bold;
+      background: #f9f9f9;
+      border-top: 1px solid #999;
+      padding-top: 12px;
+    }
+    
+    tr.subtotal td {
+      font-weight: bold;
+      border-top: 1px solid #666;
+      border-bottom: 1px solid #666;
+      background: #f5f5f5;
+    }
+    
+    tr.total td {
+      font-weight: bold;
+      font-size: 12pt;
+      border-top: 2px solid #000;
+      border-bottom: 3px double #000;
+      background: #e8f4f8;
+      padding: 12px;
+    }
+    
+    tr.indent td.label {
+      padding-left: 30px;
+    }
+    
+    .footer {
+      margin-top: 40px;
+      padding-top: 15px;
+      border-top: 1px solid #999;
+      text-align: center;
+      font-size: 9pt;
+      color: #666;
+    }
+    
+    @media print {
+      body { padding: 0; }
+      .page { max-width: none; }
+    }
+  </style>
+  <script>
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        window.print();
+      }, 500);
+    });
+  </script>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div class="company-name">合同会社N.C.N-WiN</div>
+      <div class="company-info">
+        〒273-0035 千葉県船橋市本中山2-23-16　TEL: 080-3014-3394
+      </div>
+    </div>
+
+    <div class="doc-title">損益計算書</div>
+    <div class="period">
+      自 ${startDate || '期首'} 　至 ${endDate || '期末'}
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 60%;">科目</th>
+          <th style="width: 40%; text-align: right;">金額</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- 売上高 -->
+        <tr class="section-header">
+          <td colspan="2">【売上高】</td>
+        </tr>
+        ${revenueDetails.map(item => `
+        <tr class="indent">
+          <td class="label">${item.account_name}</td>
+          <td class="amount">¥${item.amount.toLocaleString()}</td>
+        </tr>
+        `).join('')}
+        ${revenueDetails.length === 0 ? '<tr class="indent"><td class="label">売上データなし</td><td class="amount">¥0</td></tr>' : ''}
+        <tr class="subtotal">
+          <td class="label">売上高合計</td>
+          <td class="amount">¥${revenueTotal.toLocaleString()}</td>
+        </tr>
+        
+        <!-- 経費 -->
+        <tr class="section-header">
+          <td colspan="2">【経費】</td>
+        </tr>
+        ${expenseDetails.map(item => `
+        <tr class="indent">
+          <td class="label">${item.account_name}</td>
+          <td class="amount">¥${item.amount.toLocaleString()}</td>
+        </tr>
+        `).join('')}
+        ${expenseDetails.length === 0 ? '<tr class="indent"><td class="label">経費データなし</td><td class="amount">¥0</td></tr>' : ''}
+        <tr class="subtotal">
+          <td class="label">経費合計</td>
+          <td class="amount">¥${expensesTotal.toLocaleString()}</td>
+        </tr>
+        
+        <!-- 当期純利益 -->
+        <tr class="total">
+          <td class="label">${netIncome >= 0 ? '当期純利益' : '当期純損失'}</td>
+          <td class="amount">${netIncome >= 0 ? '' : '△'}¥${Math.abs(netIncome).toLocaleString()}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer">
+      <div>発行日: ${new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+      <div style="margin-top: 5px;">合同会社N.C.N-WiN 受発注管理システム</div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+// 貸借対照表HTML生成関数
+function generateBalanceSheetHTML(assetDetails, liabilityDetails, equityDetails, assetsTotal, liabilitiesTotal, equityTotal, asOfDate) {
+  const totalLiabilitiesEquity = liabilitiesTotal + equityTotal;
+  
+  return `<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>貸借対照表</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'MS PGothic', 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif; 
+      background: white;
+      padding: 15mm;
+      font-size: 11pt;
+    }
+    .page { 
+      max-width: 180mm;
+      margin: 0 auto;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #000;
+      padding-bottom: 15px;
+    }
+    .company-name {
+      font-size: 16pt;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .company-info {
+      font-size: 9pt;
+      color: #333;
+      line-height: 1.5;
+    }
+    .doc-title {
+      font-size: 18pt;
+      font-weight: bold;
+      margin: 15px 0 10px 0;
+      text-align: center;
+    }
+    .as-of-date {
+      font-size: 10pt;
+      text-align: center;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 5px;
+    }
+    
+    th, td {
+      padding: 8px 12px;
+      text-align: left;
+      border: 1px solid #999;
+    }
+    
+    th {
+      background: #f5f5f5;
+      font-weight: bold;
+      border: 2px solid #000;
+      text-align: center;
+    }
+    
+    td.amount {
+      text-align: right;
+      font-family: 'Courier New', monospace;
+    }
+    
+    tr.section-header td {
+      font-weight: bold;
+      background: #f9f9f9;
+      border-top: 2px solid #666;
+      border-bottom: 1px solid #666;
+    }
+    
+    tr.subtotal td {
+      font-weight: bold;
+      background: #f5f5f5;
+      border-top: 1px solid #666;
+    }
+    
+    tr.total td {
+      font-weight: bold;
+      font-size: 12pt;
+      border: 2px solid #000;
+      background: #e8f4f8;
+      padding: 12px;
+    }
+    
+    tr.indent td.label {
+      padding-left: 30px;
+    }
+    
+    .balance-check {
+      text-align: center;
+      margin: 20px 0;
+      padding: 10px;
+      background: ${Math.abs(assetsTotal - totalLiabilitiesEquity) < 0.01 ? '#f6ffed' : '#fff1f0'};
+      border: 1px solid ${Math.abs(assetsTotal - totalLiabilitiesEquity) < 0.01 ? '#b7eb8f' : '#ffa39e'};
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    
+    .footer {
+      margin-top: 40px;
+      padding-top: 15px;
+      border-top: 1px solid #999;
+      text-align: center;
+      font-size: 9pt;
+      color: #666;
+    }
+    
+    @media print {
+      body { padding: 0; }
+      .page { max-width: none; }
+    }
+  </style>
+  <script>
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        window.print();
+      }, 500);
+    });
+  </script>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <div class="company-name">合同会社N.C.N-WiN</div>
+      <div class="company-info">
+        〒273-0035 千葉県船橋市本中山2-23-16　TEL: 080-3014-3394
+      </div>
+    </div>
+
+    <div class="doc-title">貸借対照表</div>
+    <div class="as-of-date">
+      ${asOfDate || new Date().toISOString().split('T')[0]} 現在
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 60%;">資産の部</th>
+          <th style="width: 40%;">金額</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${assetDetails.map(item => `
+        <tr class="indent">
+          <td class="label">${item.account_name}</td>
+          <td class="amount">¥${item.amount.toLocaleString()}</td>
+        </tr>
+        `).join('')}
+        ${assetDetails.length === 0 ? '<tr class="indent"><td class="label">資産データなし</td><td class="amount">¥0</td></tr>' : ''}
+        <tr class="total">
+          <td class="label">資産合計</td>
+          <td class="amount">¥${assetsTotal.toLocaleString()}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 60%;">負債の部</th>
+          <th style="width: 40%;">金額</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${liabilityDetails.map(item => `
+        <tr class="indent">
+          <td class="label">${item.account_name}</td>
+          <td class="amount">¥${item.amount.toLocaleString()}</td>
+        </tr>
+        `).join('')}
+        ${liabilityDetails.length === 0 ? '<tr class="indent"><td class="label">負債データなし</td><td class="amount">¥0</td></tr>' : ''}
+        <tr class="subtotal">
+          <td class="label">負債合計</td>
+          <td class="amount">¥${liabilitiesTotal.toLocaleString()}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 60%;">純資産の部</th>
+          <th style="width: 40%;">金額</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${equityDetails.map(item => `
+        <tr class="indent">
+          <td class="label">${item.account_name}</td>
+          <td class="amount">¥${item.amount.toLocaleString()}</td>
+        </tr>
+        `).join('')}
+        ${equityDetails.length === 0 ? '<tr class="indent"><td class="label">純資産データなし</td><td class="amount">¥0</td></tr>' : ''}
+        <tr class="subtotal">
+          <td class="label">純資産合計</td>
+          <td class="amount">¥${equityTotal.toLocaleString()}</td>
+        </tr>
+        <tr class="total">
+          <td class="label">負債・純資産合計</td>
+          <td class="amount">¥${totalLiabilitiesEquity.toLocaleString()}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="balance-check">
+      ${Math.abs(assetsTotal - totalLiabilitiesEquity) < 0.01 ? '✓ 貸借バランス一致' : '⚠ 貸借バランス不一致'}
+      (差額: ¥${Math.abs(assetsTotal - totalLiabilitiesEquity).toLocaleString()})
+    </div>
+
+    <div class="footer">
+      <div>発行日: ${new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+      <div style="margin-top: 5px;">合同会社N.C.N-WiN 受発注管理システム</div>
+    </div>
+  </div>
+</body>
+</html>`;
 }
 
 export default router;
