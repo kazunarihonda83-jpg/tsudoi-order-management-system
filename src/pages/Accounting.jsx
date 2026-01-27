@@ -116,6 +116,44 @@ export default function Accounting() {
     return `¥${Math.round(amount).toLocaleString()}`;
   };
 
+  const handlePDFExport = async (type, params) => {
+    try {
+      const token = localStorage.getItem('token');
+      const baseUrl = import.meta.env.VITE_API_URL || '/api';
+      let url = `${baseUrl}/accounting/${type}/pdf?`;
+      
+      if (type === 'profit-loss') {
+        url += `start_date=${params.start_date}&end_date=${params.end_date}`;
+      } else if (type === 'balance-sheet') {
+        url += `as_of_date=${params.as_of_date}`;
+      }
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('PDF generation error:', errorText);
+        throw new Error('PDF生成に失敗しました');
+      }
+      
+      const html = await response.text();
+      const newWindow = window.open('', '_blank');
+      if (!newWindow) {
+        alert('ポップアップがブロックされました。ブラウザの設定を確認してください。');
+        return;
+      }
+      newWindow.document.write(html);
+      newWindow.document.close();
+    } catch (error) {
+      console.error('PDF export error:', error);
+      alert('PDF出力に失敗しました');
+    }
+  };
+
   const exportToCSV = (type) => {
     let csvContent = '';
     let filename = '';
@@ -417,6 +455,39 @@ export default function Accounting() {
             <p style={{ color: '#666', fontSize: '14px' }}>
               期間: {dateRange.start} 〜 {dateRange.end}
             </p>
+            <div style={{ marginTop: '15px' }}>
+              <button
+                onClick={() => handlePDFExport('profit-loss', { 
+                  start_date: dateRange.start, 
+                  end_date: dateRange.end 
+                })}
+                style={{
+                  padding: '10px 20px',
+                  background: '#f5f5f5',
+                  color: '#333',
+                  border: '1px solid #d9d9d9',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.3s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#e6e6e6';
+                  e.currentTarget.style.borderColor = '#bfbfbf';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = '#f5f5f5';
+                  e.currentTarget.style.borderColor = '#d9d9d9';
+                }}
+              >
+                <Download size={16} />
+                PDF出力
+              </button>
+            </div>
           </div>
 
           <div style={{ maxWidth: '600px', margin: '0 auto' }}>
@@ -458,6 +529,38 @@ export default function Accounting() {
             <p style={{ color: '#666', fontSize: '14px' }}>
               基準日: {dateRange.end}
             </p>
+            <div style={{ marginTop: '15px' }}>
+              <button
+                onClick={() => handlePDFExport('balance-sheet', { 
+                  as_of_date: dateRange.end 
+                })}
+                style={{
+                  padding: '10px 20px',
+                  background: '#f5f5f5',
+                  color: '#333',
+                  border: '1px solid #d9d9d9',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  transition: 'all 0.3s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#e6e6e6';
+                  e.currentTarget.style.borderColor = '#bfbfbf';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = '#f5f5f5';
+                  e.currentTarget.style.borderColor = '#d9d9d9';
+                }}
+              >
+                <Download size={16} />
+                PDF出力
+              </button>
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', maxWidth: '900px', margin: '0 auto' }}>

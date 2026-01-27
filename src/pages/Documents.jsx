@@ -291,8 +291,8 @@ export default function Documents() {
                       プレビュー
                     </button>
                     <button onClick={() => handleDownloadPDF(doc)}
-                      style={{ padding: '6px 12px', background: '#fff', border: '1px solid #52c41a',
-                        color: '#52c41a', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>
+                      style={{ padding: '6px 12px', background: '#fff', border: '1px solid #595959',
+                        color: '#595959', borderRadius: '4px', cursor: 'pointer', fontSize: '13px' }}>
                       <FileDown size={14} style={{ verticalAlign: 'middle', marginRight: '4px' }} />
                       PDF出力
                     </button>

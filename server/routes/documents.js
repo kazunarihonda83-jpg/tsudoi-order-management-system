@@ -319,6 +319,16 @@ function generateDocumentHTML(document, items, isPreview = false) {
       .footer-actions { display: none !important; }
     }
   </style>
+  ${!isPreview ? `
+  <script>
+    // PDF出力時に自動的に印刷ダイアログを開く
+    window.addEventListener('load', function() {
+      setTimeout(function() {
+        window.print();
+      }, 500);
+    });
+  </script>
+  ` : ''}
 </head>
 <body>
   <div class="page">
@@ -327,11 +337,12 @@ function generateDocumentHTML(document, items, isPreview = false) {
       <!-- ヘッダー -->
       <div class="header">
         <div class="header-left">
-          <div class="company-name">13湯麺集TSUDOI</div>
+          <div class="company-name">13湯麺　集TSUDOI</div>
           <div class="company-info">
             〒273-0137 千葉県鎌ヶ谷市道野辺本町2-22-1<br>
             TEL: 090-9383-8430<br>
-            Email: katonoyuki1989@gmail.com
+            Email: （メールアドレス未設定）<br>
+            HP: <a href="https://tabelog.com/chiba/A1203/A120303/12061712/" style="color: inherit;">https://tabelog.com/chiba/A1203/A120303/12061712/</a>
           </div>
         </div>
         <div class="header-right">
@@ -425,7 +436,7 @@ function generateDocumentHTML(document, items, isPreview = false) {
       <!-- フッター -->
       <div class="footer">
         <div>この書類に関するお問い合わせは、上記連絡先までお願いいたします。</div>
-        <div style="margin-top: 8px;">発行元: 13湯麺集TSUDOI 受発注管理システム</div>
+        <div style="margin-top: 8px;">発行元: 13湯麺　集TSUDOI 受発注管理システム</div>
         
         ${isPreview ? `
         <div class="footer-actions">

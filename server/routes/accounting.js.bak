@@ -685,9 +685,9 @@ function generateProfitLossHTML(revenueDetails, expenseDetails, revenueTotal, ex
 <body>
   <div class="page">
     <div class="header">
-      <div class="company-name">13湯麺　集TSUDOI</div>
+      <div class="company-name">合同会社N.C.N-WiN</div>
       <div class="company-info">
-        〒273-0137 千葉県鎌ヶ谷市道野辺本町2-22-1　TEL: 090-9383-8430
+        〒273-0035 千葉県船橋市本中山2-23-16　TEL: 080-3014-3394
       </div>
     </div>
 
@@ -746,7 +746,7 @@ function generateProfitLossHTML(revenueDetails, expenseDetails, revenueTotal, ex
 
     <div class="footer">
       <div>発行日: ${new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-      <div style="margin-top: 5px;">13湯麺　集TSUDOI 受発注管理システム</div>
+      <div style="margin-top: 5px;">合同会社N.C.N-WiN 受発注管理システム</div>
     </div>
   </div>
 </body>
@@ -888,9 +888,9 @@ function generateBalanceSheetHTML(assetDetails, liabilityDetails, equityDetails,
 <body>
   <div class="page">
     <div class="header">
-      <div class="company-name">13湯麺　集TSUDOI</div>
+      <div class="company-name">合同会社N.C.N-WiN</div>
       <div class="company-info">
-        〒273-0137 千葉県鎌ヶ谷市道野辺本町2-22-1　TEL: 090-9383-8430
+        〒273-0035 千葉県船橋市本中山2-23-16　TEL: 080-3014-3394
       </div>
     </div>
 
@@ -976,7 +976,7 @@ function generateBalanceSheetHTML(assetDetails, liabilityDetails, equityDetails,
 
     <div class="footer">
       <div>発行日: ${new Date().toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-      <div style="margin-top: 5px;">13湯麺　集TSUDOI 受発注管理システム</div>
+      <div style="margin-top: 5px;">合同会社N.C.N-WiN 受発注管理システム</div>
     </div>
   </div>
 </body>

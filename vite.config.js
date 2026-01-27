@@ -5,11 +5,11 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '0.0.0.0',
-    port: 3000,
-    allowedHosts: ['3004-iwz00ie3gdkhvxpx2ni1z-82b888ba.sandbox.novita.ai', '.sandbox.novita.ai'],
+    port: 3003,
+    allowedHosts: ['3003-iwz00ie3gdkhvxpx2ni1z-82b888ba.sandbox.novita.ai', '.sandbox.novita.ai'],
     proxy: {
       '/api': {
-        target: 'http://localhost:5000',
+        target: 'http://localhost:5002',
         changeOrigin: true,
       },
     },

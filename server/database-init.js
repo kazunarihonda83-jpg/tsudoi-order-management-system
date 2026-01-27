@@ -7,8 +7,8 @@ import { existsSync } from 'fs';
 export function initDatabase() {
   // Vercel環境では/tmpディレクトリを使用（ただし永続性なし）
   const dbPath = process.env.VERCEL 
-    ? join(tmpdir(), 'order_management.db')
-    : join(process.cwd(), 'order_management.db');
+    ? join(tmpdir(), 'ncn-win-order.db')
+    : join(process.cwd(), 'ncn-win-order.db');
   
   console.log('Initializing database at:', dbPath);
   
@@ -44,7 +44,7 @@ export function initDatabase() {
     db.prepare('INSERT INTO administrators (username, password, email, permissions) VALUES (?, ?, ?, ?)').run(
       '13湯麺集TSUDOI',
       hashedPassword,
-      'info@tsudoi-ramen.com',
+      'tsudoi@example.com',
       'all'
     );
     console.log('Default admin user created successfully');
@@ -416,7 +416,7 @@ export function initDatabase() {
     const chomiryo = db.prepare('SELECT id FROM suppliers WHERE name = ?').get('調味料専門店');
     
     // Get admin user ID
-    const admin = db.prepare('SELECT id FROM administrators WHERE username = ?').get('13湯麺集TSUDOI');
+    const admin = db.prepare('SELECT id FROM administrators WHERE username = ?').get('鉄板焼き居酒屋なかまる');
     
     if (shokuzai && seika && niku && chomiryo && admin) {
       const defaultOrders = [
