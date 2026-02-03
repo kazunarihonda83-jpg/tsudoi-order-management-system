@@ -5,10 +5,19 @@ import bcrypt from 'bcryptjs';
 import { existsSync } from 'fs';
 
 export function initDatabase() {
-  // Vercel環境では/tmpディレクトリを使用（ただし永続性なし）
-  const dbPath = process.env.VERCEL 
-    ? join(tmpdir(), 'ncn-win-order.db')
-    : join(process.cwd(), 'ncn-win-order.db');
+  // Render有料プランの永続化ディスクを使用
+  let dbPath;
+  
+  if (process.env.VERCEL) {
+    // Vercel環境では/tmpディレクトリを使用（ただし永続性なし）
+    dbPath = join(tmpdir(), 'ncn-win-order.db');
+  } else if (existsSync('/data')) {
+    // Render有料プランの永続化ディスク
+    dbPath = '/data/tsudoi-order.db';
+  } else {
+    // ローカル開発環境
+    dbPath = join(process.cwd(), 'tsudoi-order.db');
+  }
   
   console.log('Initializing database at:', dbPath);
   
